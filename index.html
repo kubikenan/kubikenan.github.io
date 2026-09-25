@@ -1436,6 +1436,22 @@ function vSinavKart() {
   return '<div class="card section card-pad"><h2 class="card-title">📅 Yaklaşan Sınavlar</h2>' + rows +
     '<div class="small dim" style="margin-top:8px">Takvimi <a data-goto="katalog">Liste Ayarları</a> sayfasından düzenleyin.</div></div>';
 }
+/* v33: nöbetçi/bekçi uyarıları — yedek bayatsa kırmızı, işlenmemiş gün sonu varsa sarı bant */
+function sistemUyarilari() {
+  let h = '';
+  const y = String(DB.settings.yedekUyari || '').trim();
+  if (y) h += '<div class="banner" style="background:var(--bad-soft);color:var(--bad)">🛟 ' + esc(y) + '</div>';
+  let gunler = [];
+  try { gunler = JSON.parse(DB.settings.eksikGunler || '[]'); } catch (e) {}
+  /* bekçi günde bir koşar; gün SONRADAN işlendiyse bandı elimizdeki güncel veriyle sustur */
+  if (Array.isArray(gunler)) gunler = gunler.filter(d => !byDate(d).length);
+  if (Array.isArray(gunler) && gunler.length) {
+    h += '<div class="banner">📭 Gün sonu işlenmemiş görünen günler: <b>' +
+      gunler.map(d => fmtDate(d)).join(', ') + '</b> — <a data-goto="rapor:' + esc(gunler[gunler.length - 1]) + '">rapora git</a></div>';
+  }
+  return h;
+}
+
 function vDashboard() {
   const all = allInterviews();
   const today = todayISO();
@@ -1555,7 +1571,7 @@ function vDashboard() {
     sozGeciken.map(f => '<div class="gbar" style="grid-template-columns:120px 1fr"><span class="chip bad">' + fmtDate(f.hedefTarih) + '</span><span class="small"><b>' + esc(f.ogrenci) + '</b> — ' + esc(f.konu) + '</span></div>').join('') +
     '<div class="small" style="margin-top:8px"><a data-goto="takip">Takip Listesine git →</a></div></div>' : '';
 
-  return '<div class="hello"><h1>' + selam + ' ' + esc(ADIM ? ilkAd(ADIM) + ' Hocam' : 'Hocam') + ' ' + emoji + '</h1>' +
+  return sistemUyarilari() + '<div class="hello"><h1>' + selam + ' ' + esc(ADIM ? ilkAd(ADIM) + ' Hocam' : 'Hocam') + ' ' + emoji + '</h1>' +
     '<div class="chips">' +
     '<span>Bugün <b>' + bugun + ' görüşme</b> yaptınız</span>' +
     '<span>Bu hafta <b>' + nBu + '</b>' + (kiyas ? ' — geçen hafta ' + nGecen + ' (' + kiyas + ')' : '') + '</span>' +
@@ -1756,6 +1772,7 @@ function vQueue() {
   else if (f === 'plansiz') bekleyen = bekleyen.filter(q => !q.planTarih);
   const aranan = DB.queue.filter(q => q.durum === 'Arandı').slice(-10).reverse();
   const yarin = gunEkle(bugun, 1);
+  const alSet = satisAliciSeti(); /* v33: kuyrukta bekleyen ama satın almış kişiye rozet */
   const rows = bekleyen.map(q => {
     const eklendi = String(q.eklenme || '').slice(0, 10); /* AGS formundan gelen kayıtlarda saat de var */
     const eski = eklendi && eklendi < bugun;
@@ -1764,7 +1781,9 @@ function vQueue() {
       q.planTarih < bugun ? '<span class="chip bad">' + fmtDate(q.planTarih) + ' planlıydı</span>' :
       q.planTarih === bugun ? '<span class="chip warn">Bugün</span>' : '<span class="chip src">' + fmtDate(q.planTarih, true) + '</span>';
     return '<tr' + (onc ? ' class="oncelikli"' : '') + '><td><div class="who"><span class="avatar ' + avatarClass(q.ad) + '">' + esc(initials(q.ad)) + '</span>' +
-      (q.ogrenciId ? '<a data-goto="ogrenci:' + esc(q.ogrenciId) + '"><b>' + esc(q.ad) + '</b></a>' : '<b>' + esc(q.ad) + '</b>') + '</div></td>' +
+      (q.ogrenciId ? '<a data-goto="ogrenci:' + esc(q.ogrenciId) + '"><b>' + esc(q.ad) + '</b></a>' : '<b>' + esc(q.ad) + '</b>') +
+      (aliciMi(alSet, q.tel, q.ad, q.ogrenciId) === 2 ? ' <span class="chip ok" title="Geçerli satışı var — arama önceliği düşebilir">🛒</span>' :
+        aliciMi(alSet, q.tel, q.ad, q.ogrenciId) === 1 ? ' <span class="chip warn" title="Yalnız ad benzerliği — doğrulayın">🛒?</span>' : '') + '</div></td>' +
       '<td class="nowrap">' + esc(fmtPhone(q.tel)) + ' ' + waChip(q.tel, '', '💬') + '</td>' +
       '<td class="nowrap">' + (eski ? '<span class="dim small">' + fmtDate(eklendi) + '\'ten beri</span>' : '<span class="dim small">bugün eklendi</span>') + '</td>' +
       '<td class="nowrap"><div class="plan-cell">' + plan +
@@ -1992,6 +2011,24 @@ const SATIS_RED = ['İptal edildi', 'Ödeme hatası', 'Ücret İade Edildi', 'Pa
 const TEMAS_AD = { site: 'Görüşme', wa: 'WhatsApp', tg: 'Telegram', ags: 'AGS Formu' };
 const KONUM_AD = { sonra: 'Görüşme sonrası', once: 'Görüşme öncesi', 'temas-disi': 'Görüşme kaydı yok' };
 function satisGecerli(r) { return SATIS_RED.indexOf(String(r.durum || '')) < 0; }
+/* v33: geçerli satışı olan kişilerin anahtar kümesi — takip/kuyrukta "🛒 satın aldı" rozeti için */
+function satisAliciSeti() {
+  const s = new Set();
+  (DB.satislar || []).forEach(r => {
+    if (!satisGecerli(r)) return;
+    if (r.ogrenciId) s.add('i' + r.ogrenciId);
+    const t = normTel(r.tel); if (t) s.add('t' + t);
+    const a = adKey(r.ad); if (a) s.add('a' + a);
+  });
+  return s;
+}
+/* eşleşme SEVİYESİ döner: 2 = ogrenciId/telefon (güvenli), 1 = yalnız ad benzerliği (temkinli), 0 = yok.
+   Tek tık "Kapat" yalnız seviye 2'de gösterilir — aynı adlı başka biri yüzünden yanlış kapatma olmasın. */
+function aliciMi(set, tel, ad, ogrenciId) {
+  if (ogrenciId && set.has('i' + ogrenciId)) return 2;
+  const t = normTel(tel); if (t && set.has('t' + t)) return 2;
+  const a = adKey(ad); return (a && set.has('a' + a)) ? 1 : 0;
+}
 function fmtTL(n) {
   const v = Math.round(parseFloat(n) || 0);
   return v.toLocaleString('tr-TR') + ' ₺';
@@ -2372,20 +2409,25 @@ function vReport(dateArg) {
 /* ---------- Takip Listesi ---------- */
 function vFollowups() {
   const order = { 'Açık': 0, 'Beklemede': 1, 'Kapandı': 2 };
+  const alSet = satisAliciSeti(); /* v33: satın alanlara rozet + tek tık kapatma */
   const list = DB.followups.slice()
     .sort((a, b) => ((order[a.durum] !== undefined ? order[a.durum] : 1) - (order[b.durum] !== undefined ? order[b.durum] : 1)) || String(b.acilis).localeCompare(String(a.acilis)));
   const rows = list.map(f => {
     const st = DB.students.find(s => (f.tel && s.tel === f.tel) || s.ad.toLocaleLowerCase('tr') === f.ogrenci.toLocaleLowerCase('tr'));
+    const aldi = f.durum !== 'Kapandı' ? aliciMi(alSet, f.tel, f.ogrenci, st ? st.id : '') : 0;
     return '<tr><td class="nowrap">' + esc(f.acilis) + '</td>' +
       '<td>' + (st ? '<a data-goto="ogrenci:' + esc(st.id) + '"><b>' + esc(f.ogrenci) + '</b></a>' : '<b>' + esc(f.ogrenci) + '</b>') +
       (f.grup && f.grup !== '-' ? '<div>' + grpChip(f.grup) + '</div>' : '') + '</td>' +
       '<td style="max-width:380px">' + esc(f.konu) +
       (f.hedefTarih && f.durum !== 'Kapandı' ? ' ' + (f.hedefTarih < todayISO() ? '<span class="chip bad">⏰ ' + fmtDate(f.hedefTarih) + ' gecikti</span>' : f.hedefTarih === todayISO() ? '<span class="chip warn">⏰ Bugün dönüş günü</span>' : '<span class="chip">⏰ ' + fmtDate(f.hedefTarih) + '</span>') : '') +
+      (aldi === 2 ? ' <span class="chip ok" title="Geçerli satışı var — bu takip büyük ihtimalle kapatılabilir">🛒 satın aldı</span>' :
+        aldi === 1 ? ' <span class="chip warn" title="Yalnız AD benzerliğiyle eşleşti — aynı adlı başka biri olabilir, doğrulayın">🛒 satın almış olabilir?</span>' : '') +
       (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td>' +
       '<td class="nowrap">' + esc(f.sorumlu) + (f.ekleyen && kimAd(f.ekleyen) !== kimAd(f.sorumlu) ? '<div class="dim small">ekleyen: ' + esc(kimAd(f.ekleyen)) + '</div>' : '') + '</td>' +
       '<td class="nowrap"><select class="small" data-action="takip-durum" data-id="' + esc(f.id) + '">' +
       DB.catalogs.takipDurumlari.map(d => '<option' + (f.durum === d ? ' selected' : '') + '>' + esc(d) + '</option>').join('') +
-      '</select> ' + (f.id ? rowActions('takip', f.id) : '') + '</td></tr>';
+      '</select> ' + (aldi === 2 ? '<button class="btn sm" data-action="takip-kapat" data-id="' + esc(f.id) + '" title="Satın aldı — takibi kapat">✓ Kapat</button> ' : '') +
+      (f.id ? rowActions('takip', f.id) : '') + '</td></tr>';
   }).join('');
   const acik = DB.followups.filter(f => f.durum === 'Açık').length;
   const ef = UI.editTakip;
@@ -2513,6 +2555,9 @@ document.addEventListener('click', e => {
     const sid = el.dataset.sid;
     persist('setQueueStatus', { id: el.dataset.id, durum: 'Arandı' }, 'Arandı olarak işaretlendi')
       .then(ok => { if (ok) { if (sid) go('yeni', sid); else go('yeni'); } });
+  } else if (act === 'takip-kapat') {
+    /* v33: satın almış kişinin takibini tek tıkla kapat */
+    persist('setFollowupStatus', { id: el.dataset.id, durum: 'Kapandı' }, 'Takip kapatıldı 🛒');
   } else if (act === 'msg-ac') { UI.msgOpen = !UI.msgOpen; render(); }
   else if (act === 'msg-kopyala') {
     const t = DB.templates.find(x => x.id === el.dataset.id);
@@ -2700,15 +2745,19 @@ document.addEventListener('submit', e => {
       programlar: d.programlar.split('\n').map(s => s.trim()).filter(Boolean), sonSonuc: d.sonSonuc
     }, 'Öğrenci bilgileri güncellendi');
   } else if (act === 'gorev-kaydet') {
+    /* v33: kayıt SUNUCUDA onaylanmadan form kapanmış sayılmaz — hata olursa bayraklar geri açılır */
     UI.gorevForm = false;
     const payload = { gorev: d.gorev, bolum: d.bolum, kapsam: d.kapsam, durum: d.durum, aciklama: d.aciklama, sonraki: d.sonraki };
     if (form.dataset.editId) {
       payload.id = form.dataset.editId;
+      const oncekiEdit = UI.editTask;
       UI.editTask = null;
-      persist('updateTask', payload, 'Görev güncellendi');
+      persist('updateTask', payload, 'Görev güncellendi')
+        .then(ok => { if (!ok) { UI.gorevForm = true; UI.editTask = oncekiEdit; } });
     } else {
       payload.tarih = UI.raporDate;
-      persist('addTask', payload, 'Ek görev eklendi');
+      persist('addTask', payload, 'Ek görev eklendi')
+        .then(ok => { if (!ok) UI.gorevForm = true; });
     }
   } else if (act === 'not-kaydet') {
     persist('setNote', { tarih: UI.raporDate, not: d.not }, 'Gün değerlendirmesi kaydedildi');
@@ -2720,22 +2769,29 @@ document.addEventListener('submit', e => {
     persist('addCatalog', { tur: form.dataset.tur, deger: d.deger }, '"' + d.deger + '" listeye eklendi');
   } else if (act === 'hedef-kaydet') {
     UI.hedefEdit = false;
-    persist('setHedef', { deger: d.deger }, 'Aylık hedef kaydedildi 🎯');
+    persist('setHedef', { deger: d.deger }, 'Aylık hedef kaydedildi 🎯')
+      .then(ok => { if (!ok) UI.hedefEdit = true; }); /* v33 */
   } else if (act === 'sablon-kaydet') {
-    UI.sablonForm = false;
+    UI.sablonForm = false; /* v33: hata olursa geri açılır */
     if (form.dataset.editId) {
+      const oncekiSablon = UI.editSablon;
       UI.editSablon = null;
-      persist('updateTemplate', { id: form.dataset.editId, ad: d.ad, metin: d.metin }, 'Şablon güncellendi');
+      persist('updateTemplate', { id: form.dataset.editId, ad: d.ad, metin: d.metin }, 'Şablon güncellendi')
+        .then(ok => { if (!ok) { UI.sablonForm = true; UI.editSablon = oncekiSablon; } });
     } else {
-      persist('addTemplate', { ad: d.ad, metin: d.metin }, 'Şablon eklendi');
+      persist('addTemplate', { ad: d.ad, metin: d.metin }, 'Şablon eklendi')
+        .then(ok => { if (!ok) UI.sablonForm = true; });
     }
   } else if (act === 'kisi-ekle') {
     UI.kisiForm = false;
-    persist('setKisi', { ad: d.ad, sifre: d.sifre, rol: d.rol }, 'Kişi kaydedildi');
+    persist('setKisi', { ad: d.ad, sifre: d.sifre, rol: d.rol }, 'Kişi kaydedildi')
+      .then(ok => { if (!ok) UI.kisiForm = true; }); /* v33 */
   } else if (act === 'kisi-sifre-kaydet') {
     if (d.sifre !== d.sifre2) { toast('Şifreler eşleşmiyor', 3500, true); return; }
+    const oncekiKS = UI.kisiSifre;
     UI.kisiSifre = '';
-    persist('setKisi', { ad: form.dataset.ad, sifre: d.sifre }, form.dataset.ad + ' şifresi değiştirildi 🔑');
+    persist('setKisi', { ad: form.dataset.ad, sifre: d.sifre }, form.dataset.ad + ' şifresi değiştirildi 🔑')
+      .then(ok => { if (!ok) UI.kisiSifre = oncekiKS; }); /* v33 */
   } else if (act === 'sifre-degistir') {
     if (d.yeni !== d.yeni2) { toast('Yeni şifreler eşleşmiyor', 3500, true); return; }
     persist('sifreDegistir', { eski: d.eski, yeni: d.yeni }, 'Şifreniz değiştirildi 🔑')
@@ -2744,20 +2800,23 @@ document.addEventListener('submit', e => {
         if (ok) { PASS = d.yeni; lsSet('kh-pass', d.yeni); lsSet('kh-t', String(Date.now())); }
       });
   } else if (act === 'takip-kaydet') {
-    UI.takipForm = false;
+    UI.takipForm = false; /* v33: hata olursa aşağıda geri açılır */
     if (form.dataset.editId) {
+      const oncekiTakip = UI.editTakip;
       UI.editTakip = null;
       persist('updateFollowup', {
         id: form.dataset.editId, ogrenci: d.ogrenci, tel: normTel(d.tel), grup: d.grup,
         konu: d.konu, sorumlu: d.sorumlu, hedefTarih: d.hedefTarih || '', not: d.not
-      }, 'Takip güncellendi');
+      }, 'Takip güncellendi')
+        .then(ok => { if (!ok) { UI.takipForm = true; UI.editTakip = oncekiTakip; } });
     } else {
       const t = new Date();
       persist('addFollowup', {
         acilis: String(t.getDate()).padStart(2, '0') + '.' + String(t.getMonth() + 1).padStart(2, '0'),
         ogrenci: d.ogrenci, tel: normTel(d.tel), grup: d.grup, konu: d.konu,
         sorumlu: d.sorumlu, hedefTarih: d.hedefTarih || '', durum: 'Açık', not: d.not
-      }, 'Takip eklendi');
+      }, 'Takip eklendi')
+        .then(ok => { if (!ok) UI.takipForm = true; });
     }
   }
 });
