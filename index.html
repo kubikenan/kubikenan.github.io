@@ -771,6 +771,38 @@ function waChip(tel, metin, etiket) {
   const u = waLink(tel, metin);
   return u ? '<a class="chip wa" href="' + esc(u) + '" target="_blank" rel="noopener" title="WhatsApp\'ta aç">' + (etiket || '💬 WhatsApp') + '</a>' : '';
 }
+/* v34.1 tarih birliği: 'GG.AA.YYYY[ SS:DD]', yılsız 'GG.AA' ve ISO girişlerini 'YYYY-MM-DD'ye indirir
+   (sunucudaki tarihNorm'un istemci eşi; göç öncesi/dış kaynaklı satırlar da doğru sıralansın).
+   Noktalı kalıp baştan sona eşleşmeli ve takvimde geçerli olmalı; değilse '' döner. Yılsız tarih:
+   enYakin ise bugüne en yakın yıl (hedef tarihleri), değilse bu yıl — bugünden ileriGun'den fazla
+   ileri düşerse geçen yıl (açılış/eklenme). */
+function isoGun(s, ileriGun, enYakin) {
+  s = String(s == null ? '' : s).trim();
+  const gecerli = (y, a, g) => { const d = new Date(y, a - 1, g); return a >= 1 && a <= 12 && d.getFullYear() === y && d.getMonth() === a - 1 && d.getDate() === g; };
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return gecerli(+m[1], +m[2], +m[3]) ? m[1] + '-' + m[2] + '-' + m[3] : '';
+  m = s.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  if (!m) return '';
+  const ay = +m[2], gg = +m[1];
+  let yil = m[3] ? +m[3] : 0;
+  if (!yil) {
+    const bugun = todayISO(), buYil = +bugun.slice(0, 4);
+    if (enYakin) {
+      const b = new Date(buYil, +bugun.slice(5, 7) - 1, +bugun.slice(8, 10)).getTime();
+      yil = [buYil - 1, buYil + 1].reduce((en, y) => Math.abs(new Date(y, ay - 1, gg) - b) < Math.abs(new Date(en, ay - 1, gg) - b) ? y : en, buYil);
+    } else {
+      yil = buYil;
+      if (yil + '-' + String(ay).padStart(2, '0') + '-' + String(gg).padStart(2, '0') > gunEkle(bugun, ileriGun || 30)) yil = buYil - 1;
+    }
+  }
+  return gecerli(yil, ay, gg) ? yil + '-' + String(ay).padStart(2, '0') + '-' + String(gg).padStart(2, '0') : '';
+}
+/* sıralama anahtarı: gün + (varsa) saat — 'YYYY-MM-DD SS:DD' */
+function tarihTam(s) {
+  const g = isoGun(s, 7);
+  const sa = String(s == null ? '' : s).match(/(\d{1,2}):(\d{2})/);
+  return g ? g + (sa ? ' ' + sa[1].padStart(2, '0') + ':' + sa[2] : '') : String(s || '');
+}
 /* iso tarih bugünden kaç gün önce (negatif = ileride) */
 function gunFarki(iso) {
   if (!iso) return null;
@@ -833,6 +865,12 @@ function normalizeDB(d) {
   d.agsAdaylar = d.agsAdaylar || [];
   d.satislar = d.satislar || [];
   d.kisiler = d.kisiler || [];
+  /* v34.1: göç öncesi / dış kaynaklı satırlardaki noktalı tarihler görünümde ISO'ya iner —
+     "gecikti" / "bugün" karşılaştırmaları ve tarih girdileri tek biçimle çalışsın */
+  (d.followups || []).forEach(f => {
+    const a = isoGun(f.acilis, 7); if (a) f.acilis = a;
+    const h = isoGun(f.hedefTarih, 330, true); if (h) f.hedefTarih = h;
+  });
   return d;
 }
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -1548,7 +1586,7 @@ function sistemUyarilari() {
     const sorunlar = [
       vs.telefonsuz ? vs.telefonsuz + ' telefonsuz öğrenci kartı' : '',
       vs.durumDisi ? vs.durumDisi + ' katalog dışı görev durumu' : '',
-      vs.acilisKarisik ? vs.acilisKarisik + ' karışık açılış tarihi' : '',
+      vs.acilisKarisik ? vs.acilisKarisik + ' karışık takip tarihi' : '',
       vs.imzaTakma ? vs.imzaTakma + ' kanonik olmayan imza' : ''
     ].filter(Boolean);
     if (sorunlar.length) {
@@ -1567,9 +1605,10 @@ function vCalismaListesi() {
   const bekleyen = DB.queue.filter(q => q.durum === 'Bekliyor');
   const bugunPlanli = bekleyen.filter(q => q.planTarih && q.planTarih <= today)
     .sort((a, b) => (b.oncelik === '1' ? 1 : 0) - (a.oncelik === '1' ? 1 : 0) ||
-      (a.planTarih || '').localeCompare(b.planTarih || '') || (a.eklenme || '').localeCompare(b.eklenme || ''));
-  const hedefsiz = DB.followups.filter(f => (f.durum === 'Açık' || f.durum === 'Beklemede') && !f.hedefTarih);
-  const kuyrukYas = q => { const e = String(q.eklenme || '').slice(0, 10); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; };
+      (a.planTarih || '').localeCompare(b.planTarih || '') || tarihTam(a.eklenme).localeCompare(tarihTam(b.eklenme)));
+  /* yalnız Açık: 'Beklemede' kayıtlar kişinin kendisinin dönmesi beklenen, bilinçli tarihsiz işlerdir */
+  const hedefsiz = DB.followups.filter(f => f.durum === 'Açık' && !f.hedefTarih);
+  const kuyrukYas = q => { const e = isoGun(q.eklenme, 7); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; }; /* v34.1: '04.09.2026 12:34' biçimi de okunur */
   const bayat15 = bekleyen.filter(q => kuyrukYas(q) >= 15);
   const bayat30 = bayat15.filter(q => kuyrukYas(q) >= 30);
   const plansiz = bekleyen.filter(q => !q.planTarih);
@@ -1738,7 +1777,7 @@ function vDashboard() {
   const sozGeciken = acikBekleyen.filter(f => f.hedefTarih && f.hedefTarih < today);
   const donusList = acikBekleyen.slice(0, 4).map(f =>
     '<div class="gbar pending-list-row" style="grid-template-columns:52px 170px 1fr">' +
-    '<span class="dim small nowrap">' + esc(f.acilis) + '</span><b class="small">' + esc(f.ogrenci) + '</b>' +
+    '<span class="dim small nowrap">' + esc(/^\d{4}-\d{2}-\d{2}/.test(f.acilis) ? f.acilis.slice(8, 10) + '.' + f.acilis.slice(5, 7) : f.acilis) + '</span><b class="small">' + esc(f.ogrenci) + '</b>' +
     '<span class="konu">' + esc(f.konu) + '</span></div>').join('');
   const sozKart = (sozBugun.length || sozGeciken.length) ?
     '<div class="card section card-pad due-card' + (sozGeciken.length ? ' late' : '') + '"><h2 class="card-title">⏰ Dönüş Sözleriniz</h2>' +
@@ -1839,7 +1878,7 @@ function vStudent(id) {
     body = ivs.length ? ivs.map(iv => ivCard(iv)).join('') : '<div class="card empty">Henüz görüşme kaydı yok</div>';
   } else if (UI.tab === 'takipler') {
     body = takipler.length ? '<div class="card"><div class="twrap"><table class="data"><thead><tr><th>Açılış</th><th>Konu</th><th>Sorumlu</th><th>Durum</th></tr></thead><tbody>' +
-      takipler.map(f => '<tr><td class="nowrap">' + esc(f.acilis) + '</td><td>' + esc(f.konu) + (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td><td>' + esc(kimAd(f.sorumlu)) + '</td><td>' + durumChip(f.durum) + '</td></tr>').join('') +
+      takipler.map(f => '<tr><td class="nowrap">' + esc(fmtDate(f.acilis)) + '</td><td>' + esc(f.konu) + (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td><td>' + esc(kimAd(f.sorumlu)) + '</td><td>' + durumChip(f.durum) + '</td></tr>').join('') +
       '</tbody></table></div></div>' : '<div class="card empty">Bu öğrenci için takip kaydı yok</div>';
   } else {
     body = '<div class="card card-pad"><form data-action="ogrenci-kaydet" data-id="' + esc(st.id) + '"><div class="fgrid">' +
@@ -1938,11 +1977,11 @@ function vQueue() {
   const bekleyenTum = DB.queue.filter(q => q.durum === 'Bekliyor');
   /* sıra: öncelikli → planı bugün/geçmiş → planı ileride → plansız; eşitlikte plan tarihi, sonra eklenme */
   const sira = q => (q.oncelik === '1' ? 0 : 10) + (q.planTarih ? (q.planTarih <= bugun ? 0 : 1) : 2);
-  let bekleyen = bekleyenTum.slice().sort((a, b) => sira(a) - sira(b) || (a.planTarih || '9').localeCompare(b.planTarih || '9') || (a.eklenme || '').localeCompare(b.eklenme || ''));
+  let bekleyen = bekleyenTum.slice().sort((a, b) => sira(a) - sira(b) || (a.planTarih || '9').localeCompare(b.planTarih || '9') || tarihTam(a.eklenme).localeCompare(tarihTam(b.eklenme)));
   const nBugun = bekleyenTum.filter(q => q.planTarih && q.planTarih <= bugun).length;
   const nOncelik = bekleyenTum.filter(q => q.oncelik === '1').length;
   const f = UI.kuyrukF || '';
-  const kuyrukYas = q => { const e = String(q.eklenme || '').slice(0, 10); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; };
+  const kuyrukYas = q => { const e = isoGun(q.eklenme, 7); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; }; /* v34.1: '04.09.2026 12:34' biçimi de okunur */
   if (f === 'bugun') bekleyen = bekleyen.filter(q => q.planTarih && q.planTarih <= bugun);
   else if (f === 'oncelik') bekleyen = bekleyen.filter(q => q.oncelik === '1');
   else if (f === 'plansiz') bekleyen = bekleyen.filter(q => !q.planTarih);
@@ -1951,7 +1990,7 @@ function vQueue() {
   const yarin = gunEkle(bugun, 1);
   const alSet = satisAliciSeti(); /* v33: kuyrukta bekleyen ama satın almış kişiye rozet */
   const rows = bekleyen.map(q => {
-    const eklendi = String(q.eklenme || '').slice(0, 10); /* AGS formundan gelen kayıtlarda saat de var */
+    const eklendi = isoGun(q.eklenme, 7); /* v34.1: AGS formundan gelen '04.09.2026 12:34' biçimi de okunur */
     const eski = eklendi && eklendi < bugun;
     const onc = q.oncelik === '1';
     const plan = !q.planTarih ? '<span class="dim small">plansız</span>' :
@@ -1962,7 +2001,7 @@ function vQueue() {
       (aliciMi(alSet, q.tel, q.ad, q.ogrenciId) === 2 ? ' <span class="chip ok" title="Geçerli satışı var — arama önceliği düşebilir">🛒</span>' :
         aliciMi(alSet, q.tel, q.ad, q.ogrenciId) === 1 ? ' <span class="chip warn" title="Yalnız ad benzerliği — doğrulayın">🛒?</span>' : '') + '</div></td>' +
       '<td class="nowrap">' + esc(fmtPhone(q.tel)) + ' ' + waChip(q.tel, '', '💬') + '</td>' +
-      '<td class="nowrap">' + (eski ? '<span class="dim small">' + fmtDate(eklendi) + '\'ten beri</span>' : '<span class="dim small">bugün eklendi</span>') + '</td>' +
+      '<td class="nowrap">' + (eski ? '<span class="dim small">' + fmtDate(eklendi) + ' tarihinden beri</span>' : '<span class="dim small">bugün eklendi</span>') + '</td>' +
       '<td class="nowrap"><div class="plan-cell">' + plan +
       '<button class="btn sm" data-action="kuyruk-plan" data-id="' + esc(q.id) + '" data-t="' + bugun + '"' + (q.planTarih === bugun ? ' disabled' : '') + '>Bugün</button>' +
       '<button class="btn sm" data-action="kuyruk-plan" data-id="' + esc(q.id) + '" data-t="' + yarin + '"' + (q.planTarih === yarin ? ' disabled' : '') + '>Yarın</button>' +
@@ -2206,20 +2245,28 @@ const KONUM_AD = { sonra: 'Görüşme sonrası', once: 'Görüşme öncesi', 'te
 function satisGecerli(r) { return SATIS_RED.indexOf(String(r.durum || '')) < 0; }
 /* v33: geçerli satışı olan kişilerin anahtar kümesi — takip/kuyrukta "🛒 satın aldı" rozeti için */
 function satisAliciSeti() {
-  const s = new Set();
+  /* v34.1: anahtar → kişinin EN SON geçerli satış tarihi (takip açılışıyla kıyaslamak için) */
+  const s = new Map();
+  const ekle = (k, t) => { if (!s.has(k) || t > s.get(k)) s.set(k, t); };
   (DB.satislar || []).forEach(r => {
     if (!satisGecerli(r)) return;
-    if (r.ogrenciId) s.add('i' + r.ogrenciId);
-    const t = normTel(r.tel); if (t) s.add('t' + t);
-    const a = adKey(r.ad); if (a) s.add('a' + a);
+    const t = String(r.tarih || '').slice(0, 10);
+    if (r.ogrenciId) ekle('i' + r.ogrenciId, t);
+    const tel = normTel(r.tel); if (tel) ekle('t' + tel, t);
+    const a = adKey(r.ad); if (a) ekle('a' + a, t);
   });
   return s;
 }
 /* eşleşme SEVİYESİ döner: 2 = ogrenciId/telefon (güvenli), 1 = yalnız ad benzerliği (temkinli), 0 = yok.
    Tek tık "Kapat" yalnız seviye 2'de gösterilir — aynı adlı başka biri yüzünden yanlış kapatma olmasın. */
-function aliciMi(set, tel, ad, ogrenciId) {
-  if (ogrenciId && set.has('i' + ogrenciId)) return 2;
-  const t = normTel(tel); if (t && set.has('t' + t)) return 2;
+/* v34.1: esik (takibin açılış tarihi) verilirse ve kişinin son geçerli satışı bu tarihten ÖNCEYSE 3 döner:
+   "müşteri" — takip satın almadan SONRA açılmış bir destek işidir, satışla kapanmaz (Kapat düğmesi yok). */
+function aliciMi(set, tel, ad, ogrenciId, esik) {
+  let son = '', bulundu = false;
+  const bak = k => { if (set.has(k)) { bulundu = true; const v = set.get(k) || ''; if (v > son) son = v; } };
+  if (ogrenciId) bak('i' + ogrenciId);
+  const t = normTel(tel); if (t) bak('t' + t);
+  if (bulundu) return esik && son && son < String(esik).slice(0, 10) ? 3 : 2;
   const a = adKey(ad); return (a && set.has('a' + a)) ? 1 : 0;
 }
 function fmtTL(n) {
@@ -2595,7 +2642,7 @@ function vReport(dateArg) {
     '<div class="field"><label>Çalışma / Görev</label><input name="gorev" required value="' + tv('gorev') + '"></div>' +
     '<div class="field"><label>İlgili Bölüm</label><input name="bolum" value="' + tv('bolum') + '"></div>' +
     '<div class="field"><label>Kapsam / Adet</label><input name="kapsam" value="' + tv('kapsam') + '"></div>' +
-    '<div class="field"><label>Durum</label><select name="durum">' + selectOpts(DB.catalogs.gorevDurumlari, et ? et.durum : 'Tamamlandı') + '</select></div>' +
+    '<div class="field"><label>Durum</label><select name="durum">' + selectOpts(DB.catalogs.gorevDurumlari, et ? et.durum : 'Tamamlandı', true) + '</select></div>' +
     '<div class="field wide"><label>Açıklama</label><textarea name="aciklama" rows="2">' + tv('aciklama') + '</textarea></div>' +
     '<div class="field wide"><label>Sonraki Adım</label><input name="sonraki" value="' + tv('sonraki') + '"></div>' +
     '</div><div class="form-actions"><button class="btn primary" type="submit">' + (et ? 'Görevi Güncelle' : 'Görevi Ekle') + '</button>' +
@@ -2637,14 +2684,15 @@ function vFollowups() {
     .sort((a, b) => ((order[a.durum] !== undefined ? order[a.durum] : 1) - (order[b.durum] !== undefined ? order[b.durum] : 1)) || String(b.acilis).localeCompare(String(a.acilis)));
   const rows = list.map(f => {
     const st = DB.students.find(s => (f.tel && s.tel === f.tel) || s.ad.toLocaleLowerCase('tr') === f.ogrenci.toLocaleLowerCase('tr'));
-    const aldi = f.durum !== 'Kapandı' ? aliciMi(alSet, f.tel, f.ogrenci, st ? st.id : '') : 0;
-    return '<tr><td class="nowrap">' + esc(f.acilis) + '</td>' +
+    const aldi = f.durum !== 'Kapandı' ? aliciMi(alSet, f.tel, f.ogrenci, st ? st.id : '', f.acilis) : 0;
+    return '<tr><td class="nowrap">' + esc(fmtDate(f.acilis)) + '</td>' +
       '<td>' + (st ? '<a data-goto="ogrenci:' + esc(st.id) + '"><b>' + esc(f.ogrenci) + '</b></a>' : '<b>' + esc(f.ogrenci) + '</b>') +
       (f.grup && f.grup !== '-' ? '<div>' + grpChip(f.grup) + '</div>' : '') + '</td>' +
       '<td style="max-width:380px">' + esc(f.konu) +
       (f.hedefTarih && f.durum !== 'Kapandı' ? ' ' + (f.hedefTarih < todayISO() ? '<span class="chip bad">⏰ ' + fmtDate(f.hedefTarih) + ' gecikti</span>' : f.hedefTarih === todayISO() ? '<span class="chip warn">⏰ Bugün dönüş günü</span>' : '<span class="chip">⏰ ' + fmtDate(f.hedefTarih) + '</span>') : '') +
       (aldi === 2 ? ' <span class="chip ok" title="Geçerli satışı var — bu takip büyük ihtimalle kapatılabilir">🛒 satın aldı</span>' :
-        aldi === 1 ? ' <span class="chip warn" title="Yalnız AD benzerliğiyle eşleşti — aynı adlı başka biri olabilir, doğrulayın">🛒 satın almış olabilir?</span>' : '') +
+        aldi === 1 ? ' <span class="chip warn" title="Yalnız AD benzerliğiyle eşleşti — aynı adlı başka biri olabilir, doğrulayın">🛒 satın almış olabilir?</span>' :
+        aldi === 3 ? ' <span class="chip src" title="Satın alımı bu takipten ÖNCE — takip bir destek/sonraki iş, satışla kapanmaz">🛒 müşteri</span>' : '') +
       (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td>' +
       '<td class="nowrap">' + esc(kimAd(f.sorumlu)) + (f.ekleyen && kimAd(f.ekleyen) !== kimAd(f.sorumlu) ? '<div class="dim small">ekleyen: ' + esc(kimAd(f.ekleyen)) + '</div>' : '') + '</td>' +
       '<td class="nowrap"><select class="small" data-action="takip-durum" data-id="' + esc(f.id) + '">' +
@@ -3018,7 +3066,7 @@ document.addEventListener('submit', e => {
     const hedefler = (d.kapsam === 'hepsi' ? bekleyen : bekleyen.filter(q => !q.planTarih)).slice()
       .sort((a, b) => ((a.planTarih && a.planTarih <= bugunT) ? 0 : 1) - ((b.planTarih && b.planTarih <= bugunT) ? 0 : 1) ||
         (b.oncelik === '1' ? 1 : 0) - (a.oncelik === '1' ? 1 : 0) ||
-        (a.eklenme || '').localeCompare(b.eklenme || '') || String(a.id).localeCompare(String(b.id)));
+        tarihTam(a.eklenme).localeCompare(tarihTam(b.eklenme)) || String(a.id).localeCompare(String(b.id)));
     if (!hedefler.length) { toast('Planlanacak kayıt yok.', 3200, true); return; }
     const pazarAtla = t => { /* Pazar günü arama planlanmaz */
       let g = t;
@@ -3079,9 +3127,8 @@ document.addEventListener('submit', e => {
       }, 'Takip güncellendi')
         .then(ok => { if (!ok) { UI.takipForm = true; UI.editTakip = oncekiTakip; } });
     } else {
-      const t = new Date();
       persist('addFollowup', {
-        acilis: String(t.getDate()).padStart(2, '0') + '.' + String(t.getMonth() + 1).padStart(2, '0'),
+        acilis: todayISO(), /* v34.1: yıllı ISO — sunucu da tarihNorm'la katlar */
         ogrenci: d.ogrenci, tel: normTel(d.tel), grup: d.grup, konu: d.konu,
         sorumlu: d.sorumlu, hedefTarih: d.hedefTarih || '', durum: 'Açık', not: d.not
       }, 'Takip eklendi')
