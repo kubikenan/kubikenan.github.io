@@ -735,9 +735,16 @@ function ilkAd(name) {
   const p = String(name).trim().split(/\s+/)[0] || '';
   return p.charAt(0).toLocaleUpperCase('tr') + p.slice(1);
 }
-/* Kayitlarin imzasi (kim girdi). Eski 486 kayitta 'Kubilay Kenan Hoca' yazili — kisa adla gosterilir. */
-const AD_KISALT = { 'Kubilay Kenan Hoca': 'Kenan Hoca' };
-function kimAd(a) { const s = String(a || '').trim(); return AD_KISALT[s] || s; }
+/* Kayitlarin imzasi (kim girdi). v34 veri hijyeni (26.09.2026): kanonik ad 'Kubilay Kenan Hoca' —
+   göç öncesi kalan 'Kenan Hoca' imzaları görünümde tam ada katlanır (v33'e kadar tersiydi). */
+const AD_KANON = { 'Kenan Hoca': 'Kubilay Kenan Hoca' };
+function kimAd(a) { const s = String(a || '').trim(); return AD_KANON[s] || s; }
+/* selamlama hitabı: tam ad 'Kubilay Kenan Hoca' olsa da hitap 'Kenan Hocam' kalır */
+function hitapAd(name) {
+  const s = String(name || '').trim();
+  if (/^Kubilay\s+Kenan\b/i.test(s)) return 'Kenan';
+  return ilkAd(s);
+}
 function kimChip(a) { const s = kimAd(a); return s ? '<span class="chip src" title="Kaydı giren">✍ ' + esc(s) + '</span>' : ''; }
 /* sunucudaki adAnahtari() ile ayni normalizasyon (TR harfleri katlanir) */
 function adKey(x) {
@@ -1003,6 +1010,91 @@ function printRapor(date) {
   w.document.close();
 }
 
+/* ---------- v34 SUNUM GÖRÜNÜMÜ (madde 10) ----------
+   gun_sonu_eylul.xlsx'teki "ŞABLON – Günlük Sayfa"nın birebir baskı karşılığı: aynı başlık,
+   aynı sayaç blokları, aynı 21 sütunlu veri girişi tablosu, ek çalışmalar ve kısa değerlendirme.
+   Satır sınırı yok (Excel 60/15 ile kısıtlıydı) — Excel hattının emekliliği bu görünümle başlar. */
+function printSunum(date) {
+  const list = byDate(date), s = dayStats(list);
+  const tasks = DB.tasks.filter(t => t.tarih === date);
+  const note = (DB.dailyNotes[date] || '').replace(/^Günün Genel Değerlendirmesi\s*/, '');
+  const evet = f => list.filter(x => x.iv[f] === 'Evet').length;
+  const agsGorusme = (DB.agsAdaylar || []).filter(a => a.durum === 'Görüşüldü' && String(a.gorusmeTarihi || '').slice(0, 10) === date).length;
+  const notGirilen = list.filter(x => (x.iv.gorusmeNotu || x.iv.islem || '').trim()).length;
+  const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+  const baslikTarih = (d + ' ' + AYLAR[m - 1] + ' ' + GUNLER[new Date(y, m - 1, d).getDay()]).toLocaleUpperCase('tr');
+  const stiller = 'body{font-family:"Segoe UI",system-ui,sans-serif;font-size:10.5px;color:#1a1a1a;margin:16px}' +
+    'h1{font-size:16px;margin:8px 0 2px;color:#283C58}.sub{color:#555;margin-bottom:10px;font-size:11px}' +
+    '.meta{margin:6px 0 10px;font-size:11px}.meta b{margin-right:18px}' +
+    '.sayac{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}' +
+    '.sayac div{border:1px solid #ccd6bb;border-radius:6px;padding:6px 8px;background:#f6f9ef;text-align:center}' +
+    '.sayac b{display:block;font-size:16px}.sayac span{font-size:9.5px;color:#555}' +
+    'h2{font-size:11.5px;margin:14px 0 4px;color:#fff;background:#47791d;padding:4px 8px;border-radius:4px}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed}th{background:#eef4e2;text-align:left;font-size:8px;text-transform:uppercase;word-wrap:break-word}' +
+    'th,td{border:1px solid #ccd6bb;padding:3px 4px;vertical-align:top;font-size:9px;word-wrap:break-word;overflow-wrap:break-word}' +
+    '.ozet{margin:8px 0;font-size:11px}.deg{display:grid;grid-template-columns:2fr 1fr;gap:10px}' +
+    '.deg div{border:1px solid #ccd6bb;border-radius:6px;padding:8px;min-height:60px}.deg .k{font-weight:700;font-size:10px;color:#47791d;margin-bottom:4px}' +
+    'img{height:30px}@page{size:A4 landscape;margin:8mm}@media print{body{margin:0}}' +
+    'body{-webkit-print-color-adjust:exact;print-color-adjust:exact}';
+  const IVS = [
+    ['grup', 'Öğrenci Grubu'], ['__ad', 'Öğrenci Adı Soyadı'], ['__tel', 'Telefon'], ['saat', 'Görüşme Saati'],
+    ['deneme', 'Arama Denemesi'], ['sinav', 'Son Girdiği Sınav'], ['alinan', 'Alınan Puan'], ['hedef', 'Hedef Puan'],
+    ['yakinSinav', 'Yakın Sınav'], ['puanYeterli', 'Puanı Yeterli mi?'], ['devamEdiyor', 'Çalışmaya Devam Ediyor mu?'],
+    ['kursuTamamladi', 'Kursu Tamamladı mı?'], ['yonlendirme', 'Yönlendirme İstiyor mu?'],
+    ['anaProgram', 'Şu An Yararlandığı Ana Program'], ['ekDers', 'Yararlandığı Ek Ders / İçerik'],
+    ['baskaProgram', 'Başka Bir Programdan Yararlanmayı Düşünüyor mu?'], ['dusunulenProgram', 'Yararlanmayı Düşündüğü Ana Program'],
+    ['erisimSorunu', 'Program / Ders Erişim Sorunu Var mı?'], ['gorusmeNotu', 'Genel Açıklama / Görüşme Notu'],
+    ['onerilen', 'Önerilen Program / Ders'], ['islem', 'Yapılan İşlem / Görüşme Sonucu']
+  ];
+  /* kolon genişlikleri Excel şablonunun oranlarına yakın: uzun metinli kolonlar geniş,
+     Evet/Hayır ve sayı kolonları dar (toplam ~%100) */
+  const KOLON_W = {
+    grup: 4, __ad: 6.5, __tel: 4.5, saat: 2.5, deneme: 2.5, sinav: 4.5, alinan: 2.5, hedef: 2.5,
+    yakinSinav: 4, puanYeterli: 3, devamEdiyor: 3, kursuTamamladi: 3, yonlendirme: 3,
+    anaProgram: 6, ekDers: 7, baskaProgram: 3, dusunulenProgram: 5, erisimSorunu: 3,
+    gorusmeNotu: 12, onerilen: 8.5, islem: 10.5
+  };
+  const colgroup = '<colgroup>' + IVS.map(c => '<col style="width:' + (KOLON_W[c[0]] || 3.6) + '%">').join('') + '</colgroup>';
+  const ivRow = x => '<tr>' + IVS.map(c =>
+    '<td>' + esc(c[0] === '__ad' ? x.st.ad : c[0] === '__tel' ? fmtPhone(x.st.tel) :
+      c[0] === 'grup' ? (x.iv.grup || x.st.grup || '') : (x.iv[c[0]] || '')) + '</td>').join('') + '</tr>';
+  const gorevRows = tasks.map(t => '<tr><td>' + esc(t.gorev) + '</td><td>' + esc(t.bolum) + '</td><td>' + esc(t.kapsam) + '</td>' +
+    '<td>' + esc(t.durum) + '</td><td>' + esc(t.aciklama) + '</td><td>' + esc(t.sonraki) + '</td></tr>').join('');
+  const oneCikan = list.filter(x => x.iv.yonlendirme === 'Evet' || x.iv.erisimSorunu === 'Evet' || x.iv.baskaProgram === 'Evet')
+    .map(x => '• ' + esc(x.st.ad) + ': ' + [x.iv.yonlendirme === 'Evet' ? 'yönlendirme istiyor' : '',
+      x.iv.baskaProgram === 'Evet' ? 'yeni program düşünüyor' : '',
+      x.iv.erisimSorunu === 'Evet' ? 'erişim sorunu' : ''].filter(Boolean).join(', ')).join('<br>');
+  const sayac = (ad, n) => '<div><b>' + n + '</b><span>' + ad + '</span></div>';
+  const html = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Gün Sonu Sunum — ' + esc(fmtDate(date)) + '</title>' +
+    '<style>' + stiller + '</style></head><body>' +
+    '<img src="' + LOGO + '" alt="Ankara Dil Akademisi">' +
+    '<h1>KUBİLAY KENAN HOCA – ' + esc(baslikTarih) + ' GÜN SONU RAPORU</h1>' +
+    '<div class="sub">Ümit Hoca ve Tijen Hoca\'ya Sunulmak Üzere</div>' +
+    '<div class="meta"><b>Rapor Tarihi:</b> ' + fmtDate(date, true) + ' <b>Hazırlayan:</b> ' + esc(ADIM || 'Kubilay Kenan Hoca') + '</div>' +
+    '<div class="sayac">' + sayac('Toplam Görüşme', s.toplam) + sayac('İleri Seviye', s.ileri) + sayac('Pro Grup', s.pro) +
+    sayac('Yönlendirme İsteyen', s.yonl) + sayac('Yeni Program Düşünen', s.yeniProg) + sayac('Temel Seviye', s.temel) + '</div>' +
+    '<div class="sayac">' + sayac('Puanı Yeterli', s.yeterli) + sayac('Çalışmaya Devam', evet('devamEdiyor')) +
+    sayac('Kursu Tamamladı', evet('kursuTamamladi')) + sayac('Erişim Sorunu', s.erisim) + sayac('Notu Olan Görüşme', notGirilen) +
+    sayac('AGS Aday Görüşmesi', agsGorusme) + '</div>' +
+    '<div class="ozet">' + fmtDate(date, true) + ' günü toplam <b>' + s.toplam + '</b> öğrenciyle görüşme gerçekleştirilmiştir.' +
+    (tasks.length ? ' Ek olarak <b>' + tasks.length + '</b> çalışma/görev tamamlanmıştır.' : '') + '</div>' +
+    '<h2>GÜN İÇİNDE GÖRÜŞÜLEN ÖĞRENCİLER – VERİ GİRİŞİ</h2>' +
+    (list.length ? '<table>' + colgroup + '<tr>' + IVS.map(c => '<th>' + esc(c[1]) + '</th>').join('') + '</tr>' + list.map(ivRow).join('') + '</table>'
+      : '<div class="ozet">Bu tarihte görüşme kaydı yok.</div>') +
+    '<h2>GÜN İÇİNDE YAPILAN EK ÇALIŞMALAR / GÖREVLER</h2>' +
+    (gorevRows ? '<table><colgroup><col style="width:22%"><col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:30%"><col style="width:16%"></colgroup>' +
+      '<tr><th>Çalışma / Görev</th><th>İlgili Bölüm</th><th>Kapsam / Adet</th><th>Durum</th><th>Açıklama</th><th>Sonraki Adım</th></tr>' + gorevRows + '</table>'
+      : '<div class="ozet">Bu tarihte ek görev kaydı yok.</div>') +
+    '<h2>GÜN SONU KISA DEĞERLENDİRME</h2>' +
+    '<div class="deg"><div><div class="k">Günün Genel Değerlendirmesi</div>' + (esc(note) || '<span style="color:#999">—</span>') + '</div>' +
+    '<div><div class="k">Öne Çıkan Talep / Sorunlar</div>' + (oneCikan || '<span style="color:#999">—</span>') + '</div></div>' +
+    '<script>window.onload=function(){window.print();};<\/script></body></html>';
+  const w = window.open('', '_blank');
+  if (!w) { toast('Tarayıcı yeni pencereyi engelledi — izin verip tekrar deneyin.', 4500, true); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
 /* ---------- türetilmiş veriler ---------- */
 function allInterviews() {
   const out = [];
@@ -1060,6 +1152,7 @@ function applyRoute(page, arg) {
   if (page !== 'yeni') { UI.editIv = null; UI.agsPending = null; }
   UI.editTask = null; UI.editTakip = null;
   UI.msgOpen = false; UI.sablonForm = false; UI.editSablon = null; UI.hedefEdit = false;
+  UI.ciroEdit = false; UI.kuyrukSihir = false; UI.agsAktar = false; /* v34 formları da gezinmede kapanır */
   render();
   window.scrollTo(0, 0);
 }
@@ -1449,7 +1542,67 @@ function sistemUyarilari() {
     h += '<div class="banner">📭 Gün sonu işlenmemiş görünen günler: <b>' +
       gunler.map(d => fmtDate(d)).join(', ') + '</b> — <a data-goto="rapor:' + esc(gunler[gunler.length - 1]) + '">rapora git</a></div>';
   }
+  /* v34: haftalık veri sağlığı özeti (weeklyBackup yazar) — yalnız sorun varsa küçük bant */
+  try {
+    const vs = JSON.parse(DB.settings.veriSaglik || '');
+    const sorunlar = [
+      vs.telefonsuz ? vs.telefonsuz + ' telefonsuz öğrenci kartı' : '',
+      vs.durumDisi ? vs.durumDisi + ' katalog dışı görev durumu' : '',
+      vs.acilisKarisik ? vs.acilisKarisik + ' karışık açılış tarihi' : '',
+      vs.imzaTakma ? vs.imzaTakma + ' kanonik olmayan imza' : ''
+    ].filter(Boolean);
+    if (sorunlar.length) {
+      h += '<div class="banner info">🧹 Veri sağlığı (' + fmtDate(vs.zaman) + '): ' + sorunlar.join(' · ') + '</div>';
+    }
+  } catch (e) {}
   return h;
+}
+
+/* ---------- v34: Bugünün Çalışma Listesi (madde 6) ----------
+   Bugüne planlı aramalar + hedefsiz açık takipler + bayat kuyruk (15+/30+ gün) + 30+ gün açık
+   görevler tek kartta. Hedef tarihi geçen takipler burada TEKRAR sayılmaz — onları hemen üstteki
+   "Dönüş Sözleriniz" kartı zaten gösteriyor. Tamamen istemci hesabı, sunucu değişmez. */
+function vCalismaListesi() {
+  const today = todayISO();
+  const bekleyen = DB.queue.filter(q => q.durum === 'Bekliyor');
+  const bugunPlanli = bekleyen.filter(q => q.planTarih && q.planTarih <= today)
+    .sort((a, b) => (b.oncelik === '1' ? 1 : 0) - (a.oncelik === '1' ? 1 : 0) ||
+      (a.planTarih || '').localeCompare(b.planTarih || '') || (a.eklenme || '').localeCompare(b.eklenme || ''));
+  const hedefsiz = DB.followups.filter(f => (f.durum === 'Açık' || f.durum === 'Beklemede') && !f.hedefTarih);
+  const kuyrukYas = q => { const e = String(q.eklenme || '').slice(0, 10); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; };
+  const bayat15 = bekleyen.filter(q => kuyrukYas(q) >= 15);
+  const bayat30 = bayat15.filter(q => kuyrukYas(q) >= 30);
+  const plansiz = bekleyen.filter(q => !q.planTarih);
+  const eskiGorev = DB.tasks.filter(t => t.durum && !/Tamamlandı|İptal/i.test(t.durum) && t.tarih && gunFarki(t.tarih) !== null && gunFarki(t.tarih) >= 30)
+    .sort((a, b) => (a.tarih || '').localeCompare(b.tarih || ''));
+  if (!bugunPlanli.length && !hedefsiz.length && !bayat15.length && !eskiGorev.length) return '';
+
+  const SINIR = 10;
+  const admin = ROL === 'admin'; /* izleyicide eylem düğmeleri ve yönetici sayfası kısayolları çizilmez */
+  const planRows = bugunPlanli.slice(0, UI.calismaTum ? bugunPlanli.length : SINIR).map(q =>
+    '<div class="gbar temassiz-row">' +
+    (q.oncelik === '1' ? '<span class="chip warn">★ öncelikli</span>' :
+      q.planTarih < today ? '<span class="chip bad">' + fmtDate(q.planTarih) + ' planlıydı</span>' : '<span class="chip src">bugün planlı</span>') +
+    '<span class="small">' + (q.ogrenciId ? '<a data-goto="ogrenci:' + esc(q.ogrenciId) + '"><b>' + esc(q.ad) + '</b></a>' : '<b>' + esc(q.ad) + '</b>') +
+    (q.tel ? ' <span class="dim">' + esc(fmtPhone(q.tel)) + '</span>' : '') + '</span>' +
+    '<span class="nowrap">' + waChip(q.tel, '', '💬') +
+    (admin ? ' <button class="btn sm primary" data-action="kuyruk-arandi" data-id="' + esc(q.id) + '" data-sid="' + esc(q.ogrenciId || '') + '">✓ Aradım → Görüşme Gir</button>' : '') + '</span></div>').join('');
+
+  const ozetler = [];
+  if (hedefsiz.length) ozetler.push('<a data-goto="takip"><b>' + hedefsiz.length + '</b> hedef tarihsiz açık takip</a> — dönüş günü verin ki hatırlatma çalışsın');
+  if (bayat15.length) ozetler.push((admin ? '<a data-action="kuyruk-git" data-f="bayat">' : '') + '<b>' + bayat15.length + '</b> kişi 15+ gündür kuyrukta' + (admin ? '</a>' : '') + (bayat30.length ? ' (' + bayat30.length + '\'i 30+ gün!)' : ''));
+  if (plansiz.length >= 10 && admin) ozetler.push('<a data-action="kuyruk-git" data-f="plansiz"><b>' + plansiz.length + '</b> plansız kuyruk kaydı</a> — Aranacaklar\'daki 🪄 Toplu Planla ile günlere dağıtın');
+  const gorevRows = eskiGorev.slice(0, 3).map(t =>
+    '<div class="gbar" style="grid-template-columns:110px 1fr"><span class="chip bad">' + gunFarki(t.tarih) + ' gündür açık</span>' +
+    '<span class="small"><a data-goto="rapor:' + esc(t.tarih) + '"><b>' + esc(t.gorev) + '</b></a>' + (t.durum ? ' ' + durumChip(t.durum) : '') + '</span></div>').join('');
+
+  return '<div class="card section card-pad due-card"><h2 class="card-title">📋 Bugünün Çalışma Listesi' +
+    (bugunPlanli.length ? ' — ' + bugunPlanli.length + ' arama' : '') + '</h2>' +
+    (planRows || '<div class="dim small" style="margin-bottom:6px">Bugüne planlı arama yok.</div>') +
+    (bugunPlanli.length > SINIR ? '<div class="small" style="margin:6px 0"><a data-action="calisma-tum">' + (UI.calismaTum ? 'Kısalt ↑' : 'Tümünü gör (' + bugunPlanli.length + ') →') + '</a></div>' : '') +
+    (ozetler.length ? '<div class="small" style="margin-top:8px">' + ozetler.map(o => '⚠️ ' + o).join('<br>') + '</div>' : '') +
+    (gorevRows ? '<div style="margin-top:8px"><div class="small dim" style="margin-bottom:4px">30+ gündür kapanmamış görevler (' + eskiGorev.length + ')</div>' + gorevRows + '</div>' : '') +
+    '</div>';
 }
 
 function vDashboard() {
@@ -1558,6 +1711,28 @@ function vDashboard() {
     hedefHtml = '<div class="small dim" style="margin-top:10px"><a data-action="hedef-duzenle">🎯 Aylık görüşme hedefi belirleyin</a> — ilerlemeniz burada çubukla görünsün</div>';
   }
 
+  /* v34: ikinci hedef çubuğu — aylık NET ciro (iptal/iade/ödeme hatası hariç panel satışları) */
+  const ciroHedefDeger = parseInt(DB.settings.ciroHedef, 10) || 0;
+  const ayCiro = (DB.satislar || []).filter(r => satisGecerli(r) && (r.tarih || '').startsWith(UI.ay))
+    .reduce((n, r) => n + (parseFloat(r.tutar) || 0), 0);
+  let ciroHtml = '';
+  if (UI.ciroEdit) {
+    ciroHtml = '<form class="toolbar" data-action="ciro-kaydet" style="margin:10px 0 0">' +
+      '<input type="number" name="deger" min="1" value="' + (ciroHedefDeger || 1000000) + '" style="width:150px"> ₺' +
+      '<button class="btn sm primary" type="submit">Ciro Hedefini Kaydet</button>' +
+      '<button class="btn sm" type="button" data-action="ciro-vazgec">Vazgeç</button></form>';
+  } else if (ciroHedefDeger > 0) {
+    const oranC = Math.min(100, Math.round(ayCiro / ciroHedefDeger * 100));
+    ciroHtml = '<div style="margin-top:10px"><div class="gbar" style="grid-template-columns:1fr 60px">' +
+      '<span class="track" style="height:20px"><span class="fill" style="width:' + oranC + '%"></span></span>' +
+      '<span class="gv">%' + Math.round(ayCiro / ciroHedefDeger * 100) + '</span></div>' +
+      '<div class="small dim" style="margin-top:4px">' + esc(ayAdi(UI.ay)) + ' net cirosu: <b>' + fmtTL(ayCiro) + ' / ' + fmtTL(ciroHedefDeger) + '</b>' +
+      ' · <a data-goto="satis">Ders Alanlar</a>' + (ROL === 'admin' ? ' · <a data-action="ciro-duzenle">değiştir</a>' : '') + '</div></div>';
+  } else if ((DB.satislar || []).length && ROL === 'admin') {
+    ciroHtml = '<div class="small dim" style="margin-top:6px"><a data-action="ciro-duzenle">💰 Aylık ciro hedefi belirleyin</a> — net ciro burada ikinci çubukla görünsün</div>';
+  }
+  hedefHtml += ciroHtml;
+
   const acikBekleyen = DB.followups.filter(f => f.durum === 'Açık' || f.durum === 'Beklemede');
   const sozBugun = acikBekleyen.filter(f => f.hedefTarih === today);
   const sozGeciken = acikBekleyen.filter(f => f.hedefTarih && f.hedefTarih < today);
@@ -1571,7 +1746,7 @@ function vDashboard() {
     sozGeciken.map(f => '<div class="gbar" style="grid-template-columns:120px 1fr"><span class="chip bad">' + fmtDate(f.hedefTarih) + '</span><span class="small"><b>' + esc(f.ogrenci) + '</b> — ' + esc(f.konu) + '</span></div>').join('') +
     '<div class="small" style="margin-top:8px"><a data-goto="takip">Takip Listesine git →</a></div></div>' : '';
 
-  return sistemUyarilari() + '<div class="hello"><h1>' + selam + ' ' + esc(ADIM ? ilkAd(ADIM) + ' Hocam' : 'Hocam') + ' ' + emoji + '</h1>' +
+  return sistemUyarilari() + '<div class="hello"><h1>' + selam + ' ' + esc(ADIM ? hitapAd(ADIM) + ' Hocam' : 'Hocam') + ' ' + emoji + '</h1>' +
     '<div class="chips">' +
     '<span>Bugün <b>' + bugun + ' görüşme</b> yaptınız</span>' +
     '<span>Bu hafta <b>' + nBu + '</b>' + (kiyas ? ' — geçen hafta ' + nGecen + ' (' + kiyas + ')' : '') + '</span>' +
@@ -1582,7 +1757,7 @@ function vDashboard() {
     '</div>' + hedefHtml + '</div>' +
     '<div class="page-head"><div><h1 style="font-size:17px">Ana Sayfa</h1><div class="sub">' + fmtDate(today, true) + '</div></div>' +
     '<div class="head-actions"><button class="btn" data-goto="kuyruk">📞 Aranacaklar</button><button class="btn primary" data-goto="yeni">+ Yeni Görüşme</button></div></div>' +
-    sozKart + vSinavKart() + vTemassizKart(temassiz) +
+    vCalismaListesi() + sozKart + vSinavKart() + vTemassizKart(temassiz) +
     (acikBekleyen.length ? '<div class="card section card-pad pending-list"><h2 class="card-title">Dönüş Bekleyenler (' + acikBekleyen.length + ')</h2>' +
       donusList + '<div class="small" style="margin-top:8px"><a data-goto="takip">Tümünü gör →</a></div></div>' : '') +
     '<div class="tiles section">' +
@@ -1664,7 +1839,7 @@ function vStudent(id) {
     body = ivs.length ? ivs.map(iv => ivCard(iv)).join('') : '<div class="card empty">Henüz görüşme kaydı yok</div>';
   } else if (UI.tab === 'takipler') {
     body = takipler.length ? '<div class="card"><div class="twrap"><table class="data"><thead><tr><th>Açılış</th><th>Konu</th><th>Sorumlu</th><th>Durum</th></tr></thead><tbody>' +
-      takipler.map(f => '<tr><td class="nowrap">' + esc(f.acilis) + '</td><td>' + esc(f.konu) + (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td><td>' + esc(f.sorumlu) + '</td><td>' + durumChip(f.durum) + '</td></tr>').join('') +
+      takipler.map(f => '<tr><td class="nowrap">' + esc(f.acilis) + '</td><td>' + esc(f.konu) + (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td><td>' + esc(kimAd(f.sorumlu)) + '</td><td>' + durumChip(f.durum) + '</td></tr>').join('') +
       '</tbody></table></div></div>' : '<div class="card empty">Bu öğrenci için takip kaydı yok</div>';
   } else {
     body = '<div class="card card-pad"><form data-action="ogrenci-kaydet" data-id="' + esc(st.id) + '"><div class="fgrid">' +
@@ -1767,9 +1942,11 @@ function vQueue() {
   const nBugun = bekleyenTum.filter(q => q.planTarih && q.planTarih <= bugun).length;
   const nOncelik = bekleyenTum.filter(q => q.oncelik === '1').length;
   const f = UI.kuyrukF || '';
+  const kuyrukYas = q => { const e = String(q.eklenme || '').slice(0, 10); const g = e ? gunFarki(e) : null; return g === null ? 0 : g; };
   if (f === 'bugun') bekleyen = bekleyen.filter(q => q.planTarih && q.planTarih <= bugun);
   else if (f === 'oncelik') bekleyen = bekleyen.filter(q => q.oncelik === '1');
   else if (f === 'plansiz') bekleyen = bekleyen.filter(q => !q.planTarih);
+  else if (f === 'bayat') bekleyen = bekleyen.filter(q => kuyrukYas(q) >= 15); /* v34 */
   const aranan = DB.queue.filter(q => q.durum === 'Arandı').slice(-10).reverse();
   const yarin = gunEkle(bugun, 1);
   const alSet = satisAliciSeti(); /* v33: kuyrukta bekleyen ama satın almış kişiye rozet */
@@ -1797,8 +1974,24 @@ function vQueue() {
   }).join('');
   const arananRows = aranan.map(q => '<tr class="dim"><td>' + esc(q.ad) + '</td><td class="nowrap">' + esc(fmtPhone(q.tel)) + '</td>' +
     '<td><span class="chip ok">Arandı</span></td><td class="nowrap"><span class="del-zone"><button class="icon-btn" title="Sil" data-action="del" data-kind="queue" data-id="' + esc(q.id) + '">' + ICONS.trash + '</button></span></td></tr>').join('');
-  const filtreler = [['', 'Tümü (' + bekleyenTum.length + ')'], ['bugun', 'Bugün aranacak (' + nBugun + ')'], ['oncelik', '★ Öncelikli (' + nOncelik + ')'], ['plansiz', 'Plansız (' + bekleyenTum.filter(q => !q.planTarih).length + ')']];
-  return '<div class="page-head"><div><h1>Aranacaklar</h1><div class="sub">' + bekleyenTum.length + ' kişi sırada' + (nBugun ? ' · <b>bugün ' + nBugun + ' arama planlı</b>' : '') + (nOncelik ? ' · ' + nOncelik + ' öncelikli' : '') + ' — gün atayın, yıldızlayın, aradıkça işaretleyin</div></div></div>' +
+  const nPlansiz = bekleyenTum.filter(q => !q.planTarih).length;
+  const nBayat = bekleyenTum.filter(q => kuyrukYas(q) >= 15).length;
+  const filtreler = [['', 'Tümü (' + bekleyenTum.length + ')'], ['bugun', 'Bugün aranacak (' + nBugun + ')'], ['oncelik', '★ Öncelikli (' + nOncelik + ')'], ['plansiz', 'Plansız (' + nPlansiz + ')'], ['bayat', '🕰 15+ gün (' + nBayat + ')']];
+  /* v34: toplu planlama sihirbazı — plansız (veya tüm bekleyen) kayıtları günlük kapasiteyle ileri günlere dağıtır */
+  const sihirbazHtml = UI.kuyrukSihir && ROL === 'admin' ?
+    '<div class="card card-pad section"><h2 class="card-title">🪄 Toplu Planla</h2>' +
+    '<div class="small dim" style="margin-bottom:8px">Sıralama: önce ★ öncelikliler, sonra en uzun süredir bekleyenler. Pazar günleri atlanır; dünde kalan planları gece nöbetçisi ertesi sabaha çeker.</div>' +
+    '<form data-action="kuyruk-planla"><div class="fgrid">' +
+    '<div class="field"><label>Kapsam</label><select name="kapsam">' +
+    '<option value="plansiz">Yalnız plansızlar (' + nPlansiz + ' kişi)</option>' +
+    '<option value="hepsi">Tüm bekleyenler (' + bekleyenTum.length + ' kişi — mevcut planlar üzerine yazılır)</option></select></div>' +
+    '<div class="field"><label>Günlük arama kapasitesi</label><input type="number" name="kapasite" min="1" max="60" value="20"></div>' +
+    '<div class="field"><label>Başlangıç günü</label><input type="date" name="baslangic" value="' + bugun + '"></div>' +
+    '</div><div class="form-actions"><button class="btn primary" type="submit">Planı Dağıt</button>' +
+    '<button class="btn" type="button" data-action="kuyruk-sihir-kapat">Vazgeç</button></div></form></div>' : '';
+  return '<div class="page-head"><div><h1>Aranacaklar</h1><div class="sub">' + bekleyenTum.length + ' kişi sırada' + (nBugun ? ' · <b>bugün ' + nBugun + ' arama planlı</b>' : '') + (nOncelik ? ' · ' + nOncelik + ' öncelikli' : '') + ' — gün atayın, yıldızlayın, aradıkça işaretleyin</div></div>' +
+    '<div class="head-actions">' + (ROL === 'admin' && !UI.kuyrukSihir ? '<button class="btn" data-action="kuyruk-sihir-ac">🪄 Toplu Planla</button>' : '') + '</div></div>' +
+    sihirbazHtml +
     '<div class="card card-pad section"><div class="field ac-box" style="max-width:480px">' +
     '<label>Kuyruğa öğrenci ekle (ad / telefon yazın)</label>' +
     '<input autocomplete="off" placeholder="Ad Soyad yazın…" data-action="kac" id="kac-input"><div class="ac-list" id="kac-list" hidden></div></div></div>' +
@@ -2093,6 +2286,34 @@ function satisFiltre(kisiler) {
   if (!UI.sred && UI.stip !== 'kacan') list = list.filter(k => k.gecerliAdet > 0);
   return list.sort((a, b) => (b.sonTarih || '').localeCompare(a.sonTarih || '') || b.gecerliTutar - a.gecerliTutar);
 }
+/* v34: aylara göre NET ciro (geçerli siparişler) + iptal/hata kaybı — Ay Özeti'nin satış ayağı */
+function vSatisAylik() {
+  const rows = DB.satislar || [];
+  const aylarMap = {};
+  rows.forEach(r => {
+    const ay = String(r.tarih || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(ay)) return;
+    if (!aylarMap[ay]) aylarMap[ay] = { net: 0, adet: 0, red: 0, redAdet: 0 };
+    if (satisGecerli(r)) { aylarMap[ay].net += parseFloat(r.tutar) || 0; aylarMap[ay].adet++; }
+    else { aylarMap[ay].red += parseFloat(r.tutar) || 0; aylarMap[ay].redAdet++; }
+  });
+  const aylar = Object.keys(aylarMap).sort().reverse();
+  if (!aylar.length) return '';
+  const ayAdi = m => AYLAR[Number(m.slice(5)) - 1] + ' ' + m.slice(0, 4);
+  const hedef = parseInt(DB.settings.ciroHedef, 10) || 0;
+  const satirlar = aylar.map(m => {
+    const v = aylarMap[m];
+    return '<tr><td class="nowrap">' + esc(ayAdi(m)) + '</td>' +
+      '<td class="num">' + v.adet + '</td><td class="num"><b>' + fmtTL(v.net) + '</b></td>' +
+      '<td class="num">' + (v.redAdet ? '<span class="chip bad">' + v.redAdet + ' · ' + fmtTL(v.red) + '</span>' : '<span class="dim">—</span>') + '</td>' +
+      (hedef ? '<td class="num">' + (m === todayISO().slice(0, 7) || v.net ? '%' + Math.round(v.net / hedef * 100) : '—') + '</td>' : '') + '</tr>';
+  }).join('');
+  return '<div class="card section"><div class="card-pad"><h2 class="card-title" style="margin:0">Aylara Göre Net Ciro</h2></div>' +
+    '<div class="twrap"><table class="data"><thead><tr><th>Ay</th><th class="num">Geçerli sipariş</th><th class="num">Net ciro</th><th class="num">İptal / hata</th>' +
+    (hedef ? '<th class="num">Hedefe oran</th>' : '') + '</tr></thead><tbody>' + satirlar + '</tbody></table></div>' +
+    '<div class="card-pad small dim">Net ciro yalnız geçerli siparişleri toplar; iptal, ödeme hatası ve iade edilen tutarlar yanında ayrı gösterilir.' +
+    (hedef ? ' Aylık hedef: <b>' + fmtTL(hedef) + '</b> (Ana Sayfa\'dan değiştirilir).' : '') + '</div></div>';
+}
 function vSatis() {
   const hepsi = satisKisiler();
   if (!hepsi.length) {
@@ -2178,10 +2399,11 @@ function vSatis() {
     '<label class="inline-check"><input type="checkbox" data-action="sred-sec"' + (UI.sred ? ' checked' : '') + '> iptal/hata olanları da göster</label></div>' +
     '<div class="tiles section">' +
     '<div class="tile t-green"><div class="n">' + gecerliK.length + '</div><div class="l">Alım yapan kişi</div></div>' +
-    '<div class="tile t-sky"><div class="n">' + fmtTL(ciro) + '</div><div class="l">Toplam alım tutarı</div></div>' +
+    '<div class="tile t-sky"><div class="n">' + fmtTL(ciro) + '</div><div class="l">Net ciro (iptal/iade hariç)</div></div>' +
     '<div class="tile t-lilac"><div class="n">' + donusum.length + '</div><div class="l">Görüşme sonrası alım</div></div>' +
     '<div class="tile t-amber"><div class="n">' + fmtTL(donusumCiro) + '</div><div class="l">Görüşme sonrası tutar</div></div>' +
     '</div>' +
+    vSatisAylik() +
     '<div class="card section card-pad"><h2 class="card-title">Temas Kaynağına Göre</h2>' + kaynBars +
     '<div class="small dim" style="margin-top:10px">Bir kişi birden çok kaynakta görünebilir (ör. hem görüşme kaydı hem WhatsApp yazışması). Tutarlar yalnız geçerli siparişleri kapsar; iptal, ödeme hatası ve iade edilenler ayrı gösterilir.</div></div>' +
     kartYokKart + kacanKart +
@@ -2383,6 +2605,7 @@ function vReport(dateArg) {
     '<div class="sub">Ümit Hoca ve Tijen Hoca’ya sunulmak üzere · Hazırlayan: ' + esc(ADIM || 'Kubilay Kenan Hoca') + '</div></div>' +
     '<div class="head-actions">' +
     '<button class="btn" data-action="ozet-kopyala"' + (list.length ? '' : ' disabled') + '>Özeti Kopyala</button>' +
+    '<button class="btn" data-action="sunum" title="Excel şablonuyla birebir aynı düzen — yazdır ya da PDF kaydet"' + (list.length || tasks.length ? '' : ' disabled') + '>📊 Sunum Görünümü</button>' +
     '<button class="btn" data-action="yazdir"' + (list.length || tasks.length ? '' : ' disabled') + '>Yazdır</button>' +
     '<button class="btn" data-action="csv-gun"' + (list.length ? '' : ' disabled') + '>CSV</button>' +
     '<button class="btn primary" data-goto="yeni">+ Yeni Görüşme</button></div></div>' +
@@ -2423,7 +2646,7 @@ function vFollowups() {
       (aldi === 2 ? ' <span class="chip ok" title="Geçerli satışı var — bu takip büyük ihtimalle kapatılabilir">🛒 satın aldı</span>' :
         aldi === 1 ? ' <span class="chip warn" title="Yalnız AD benzerliğiyle eşleşti — aynı adlı başka biri olabilir, doğrulayın">🛒 satın almış olabilir?</span>' : '') +
       (f.not ? '<div class="dim small">' + esc(f.not) + '</div>' : '') + '</td>' +
-      '<td class="nowrap">' + esc(f.sorumlu) + (f.ekleyen && kimAd(f.ekleyen) !== kimAd(f.sorumlu) ? '<div class="dim small">ekleyen: ' + esc(kimAd(f.ekleyen)) + '</div>' : '') + '</td>' +
+      '<td class="nowrap">' + esc(kimAd(f.sorumlu)) + (f.ekleyen && kimAd(f.ekleyen) !== kimAd(f.sorumlu) ? '<div class="dim small">ekleyen: ' + esc(kimAd(f.ekleyen)) + '</div>' : '') + '</td>' +
       '<td class="nowrap"><select class="small" data-action="takip-durum" data-id="' + esc(f.id) + '">' +
       DB.catalogs.takipDurumlari.map(d => '<option' + (f.durum === d ? ' selected' : '') + '>' + esc(d) + '</option>').join('') +
       '</select> ' + (aldi === 2 ? '<button class="btn sm" data-action="takip-kapat" data-id="' + esc(f.id) + '" title="Satın aldı — takibi kapat">✓ Kapat</button> ' : '') +
@@ -2437,7 +2660,7 @@ function vFollowups() {
     '<div class="field"><label>Öğrenci / Konu Sahibi</label><input name="ogrenci" required value="' + fv('ogrenci') + '"></div>' +
     '<div class="field"><label>Telefon</label><input name="tel" inputmode="tel" value="' + fv('tel') + '"></div>' +
     '<div class="field"><label>Grup</label><select name="grup">' + selectOpts(DB.catalogs.gruplar, ef ? ef.grup : '') + '</select></div>' +
-    '<div class="field"><label>Sorumlu</label><input name="sorumlu" value="' + (ef ? fv('sorumlu') : esc(kimAd(ADIM) || 'Kenan Hoca')) + '"></div>' +
+    '<div class="field"><label>Sorumlu</label><input name="sorumlu" value="' + (ef ? fv('sorumlu') : esc(kimAd(ADIM) || 'Kubilay Kenan Hoca')) + '"></div>' +
     '<div class="field"><label>Dönüş Sözü Tarihi <span class="dim">(günü gelince ana sayfada hatırlatılır)</span></label><input type="date" name="hedefTarih" value="' + fv('hedefTarih') + '"></div>' +
     '<div class="field wide"><label>Konu / Söz Verilen İş</label><textarea name="konu" rows="2" required>' + fv('konu') + '</textarea></div>' +
     '<div class="field wide"><label>Not</label><input name="not" value="' + fv('not') + '"></div>' +
@@ -2493,11 +2716,12 @@ document.addEventListener('click', e => {
   if (!el || !DB) return;
   if (el.dataset.goto !== undefined && el.dataset.goto !== '') {
     const parts = el.dataset.goto.split(':');
+    if (parts[0] === 'kuyruk') UI.kuyrukF = ''; /* v34: kısayol filtresi (kuyruk-git) sonraki normal girişte kalıcı kalmasın */
     go(parts[0], parts.slice(1).join(':'));
     return;
   }
   const act = el.dataset.action;
-  if (el.dataset.nav) { go(el.dataset.nav); return; }
+  if (el.dataset.nav) { if (el.dataset.nav === 'kuyruk') UI.kuyrukF = ''; go(el.dataset.nav); return; }
   if (act === 'menu') {
     const sb = $('#sidebar');
     sb.classList.toggle('open');
@@ -2591,6 +2815,14 @@ document.addEventListener('click', e => {
     downloadCSV('gun-sonu-' + UI.raporDate + '.csv', ivRows(byDate(UI.raporDate)));
   } else if (act === 'gtum') { UI.gtum = true; render(); }
   else if (act === 'temassiz-tum') { UI.temassizTum = !UI.temassizTum; render(); }
+  else if (act === 'calisma-tum') { UI.calismaTum = !UI.calismaTum; render(); }        /* v34 */
+  else if (act === 'sicak-tum') { UI.sicakTum = !UI.sicakTum; render(); }              /* v34 */
+  else if (act === 'kuyruk-git') { UI.kuyrukF = el.dataset.f || ''; go('kuyruk'); }    /* v34: filtreli kısayol */
+  else if (act === 'kuyruk-sihir-ac') { UI.kuyrukSihir = true; render(); }             /* v34 */
+  else if (act === 'kuyruk-sihir-kapat') { UI.kuyrukSihir = false; render(); }         /* v34 */
+  else if (act === 'ciro-duzenle') { UI.ciroEdit = true; render(); }                   /* v34 */
+  else if (act === 'ciro-vazgec') { UI.ciroEdit = false; render(); }                   /* v34 */
+  else if (act === 'sunum') { printSunum(UI.raporDate); }                              /* v34 */
   else if (act === 'sinav-ac') { UI.sinavAc = UI.sinavAc === el.dataset.id ? '' : el.dataset.id; render(); }
   else if (act === 'sinav-kopyala') { const sv = sinavTakvimi().find(x => x.id === el.dataset.id); if (sv) copyText(sinavListeText(sv)); }
   else if (act === 'sinav-sil') {
@@ -2771,6 +3003,43 @@ document.addEventListener('submit', e => {
     UI.hedefEdit = false;
     persist('setHedef', { deger: d.deger }, 'Aylık hedef kaydedildi 🎯')
       .then(ok => { if (!ok) UI.hedefEdit = true; }); /* v33 */
+  } else if (act === 'ciro-kaydet') { /* v34: aylık net ciro hedefi */
+    UI.ciroEdit = false;
+    persist('setCiroHedef', { deger: d.deger }, 'Aylık ciro hedefi kaydedildi 💰')
+      .then(ok => { if (!ok) UI.ciroEdit = true; });
+  } else if (act === 'kuyruk-planla') { /* v34: toplu planlama sihirbazı */
+    const kapasite = Math.max(1, Math.min(60, parseInt(d.kapasite, 10) || 20));
+    let gun = d.baslangic && /^\d{4}-\d{2}-\d{2}$/.test(d.baslangic) ? d.baslangic : todayISO();
+    if (gun < todayISO()) gun = todayISO();
+    const bekleyen = DB.queue.filter(q => q.durum === 'Bekliyor');
+    const bugunT = todayISO();
+    /* sıra: bugüne/geçmişe zaten planlılar başa (bugünün listesi ileriye savrulmasın — yalnız
+       'hepsi' kapsamında anlamlı), sonra ★ öncelikliler, sonra en uzun süredir bekleyenler */
+    const hedefler = (d.kapsam === 'hepsi' ? bekleyen : bekleyen.filter(q => !q.planTarih)).slice()
+      .sort((a, b) => ((a.planTarih && a.planTarih <= bugunT) ? 0 : 1) - ((b.planTarih && b.planTarih <= bugunT) ? 0 : 1) ||
+        (b.oncelik === '1' ? 1 : 0) - (a.oncelik === '1' ? 1 : 0) ||
+        (a.eklenme || '').localeCompare(b.eklenme || '') || String(a.id).localeCompare(String(b.id)));
+    if (!hedefler.length) { toast('Planlanacak kayıt yok.', 3200, true); return; }
+    const pazarAtla = t => { /* Pazar günü arama planlanmaz */
+      let g = t;
+      while (new Date(g.slice(0, 4), Number(g.slice(5, 7)) - 1, Number(g.slice(8, 10))).getDay() === 0) g = gunEkle(g, 1);
+      return g;
+    };
+    /* dağıtım dışı kalan bekleyenlerin mevcut planları günlük kapasiteden düşülür —
+       bugün 15 planlıyken kapasite 20 ile bugüne 35 arama yığılmasın */
+    const hedefSet = new Set(hedefler.map(q => q.id));
+    const yuk = {};
+    bekleyen.forEach(q => { if (q.planTarih && !hedefSet.has(q.id)) yuk[q.planTarih] = (yuk[q.planTarih] || 0) + 1; });
+    gun = pazarAtla(gun);
+    let kalan = Math.max(0, kapasite - (yuk[gun] || 0));
+    const plans = hedefler.map(q => {
+      while (kalan === 0) { gun = pazarAtla(gunEkle(gun, 1)); kalan = Math.max(0, kapasite - (yuk[gun] || 0)); }
+      kalan--;
+      return { id: q.id, planTarih: gun, oncelik: q.oncelik === '1' };
+    });
+    UI.kuyrukSihir = false;
+    persist('planKuyrukToplu', { plans: plans }, plans.length + ' kişi ' + fmtDate(plans[0].planTarih) + ' – ' + fmtDate(plans[plans.length - 1].planTarih) + ' arasına dağıtıldı 🪄')
+      .then(ok => { if (!ok) UI.kuyrukSihir = true; });
   } else if (act === 'sablon-kaydet') {
     UI.sablonForm = false; /* v33: hata olursa geri açılır */
     if (form.dataset.editId) {
@@ -2873,16 +3142,20 @@ function vKisiPanel() {
     '<span class="seg"><button data-action="kisi-aralik" data-v="gun"' + (aralik === 'gun' ? ' class="active"' : '') + '>Bugün</button>' +
     '<button data-action="kisi-aralik" data-v="hafta"' + (aralik === 'hafta' ? ' class="active"' : '') + '>Bu hafta</button></span></div>' +
     (satirlar || '<div class="dim small">Kayıt yok</div>') +
-    '<div class="small dim" style="margin-top:8px">Kaydı giren kişi sunucuda işaretlenir. Eylül 2026 öncesi kayıtların tamamı Kenan Hoca adına görünür.</div></div>';
+    '<div class="small dim" style="margin-top:8px">Kaydı giren kişi sunucuda işaretlenir. Eylül 2026 öncesi kayıtların tamamı Kubilay Kenan Hoca adına görünür.</div></div>';
 }
 
 /* ---------- Kişiler & Şifreler ---------- */
 function vKisiler() {
   const kisiler = (DB.kisiler || []).slice().sort((a, b) => String(a.ad).localeCompare(String(b.ad), 'tr'));
-  const benim = adKey(ADIM);
   const rows = kisiler.map(k => {
-    const ben = adKey(k.ad) === benim;
+    const ben = adKey(kimAd(k.ad)) === adKey(kimAd(ADIM)); /* v34: iki taraf da kanonik ada katlanır */
     const kullanici = adKey(k.ad);
+    /* v34: 3+ kelimeli adlarda son iki kelimeden kısaltma da giriş yapar (sunucu, adın ardışık
+       kelime birleşimlerini ≥5 karakterle kabul eder) — kısa kalanlar gösterilmez */
+    const parcalar = String(k.ad).trim().split(/\s+/);
+    const kisaAday = parcalar.length > 2 ? adKey(parcalar.slice(-2).join('')) : '';
+    const kisaGiris = kisaAday.length >= 5 ? kisaAday : '';
     const sifreForm = UI.kisiSifre === k.ad ?
       '<tr><td colspan="4"><form class="toolbar" data-action="kisi-sifre-kaydet" data-ad="' + esc(k.ad) + '" style="margin:0">' +
       '<input type="password" name="sifre" required minlength="6" placeholder="Yeni şifre (en az 6)" autocomplete="new-password">' +
@@ -2891,7 +3164,7 @@ function vKisiler() {
       '<button class="btn sm" type="button" data-action="kisi-vazgec">Vazgeç</button></form></td></tr>' : '';
     return '<tr><td><div class="who"><span class="avatar ' + avatarClass(k.ad) + '">' + esc(initials(k.ad)) + '</span><b>' + esc(k.ad) + '</b>' +
       (ben ? ' <span class="chip ok">siz</span>' : '') + '</div>' +
-      '<div class="dim small">kullanıcı adı: <b>' + esc(kullanici) + '</b></div></td>' +
+      '<div class="dim small">kullanıcı adı: <b>' + esc(kullanici) + '</b>' + (kisaGiris ? ' · kısaca <b>' + esc(kisaGiris) + '</b>' : '') + '</div></td>' +
       '<td><select class="small" data-action="kisi-rol" data-ad="' + esc(k.ad) + '">' +
       '<option value="yonetici"' + (k.rol === 'yonetici' ? ' selected' : '') + '>Yönetici — her şeyi yapabilir</option>' +
       '<option value="izleyici"' + (k.rol !== 'yonetici' ? ' selected' : '') + '>İzleyici — salt-okunur</option></select></td>' +
@@ -3023,7 +3296,7 @@ function vAyRapor() {
     (gbarListesi(Object.entries(R.grup).sort((a, b) => b[1] - a[1])) || '<span class="dim small">Kayıt yok</span>') + '</div>' +
     '<div class="card section card-pad"><h2 class="card-title">Kişi Bazlı Katkı</h2>' +
     (gbarListesi(kisiSatir) || '<span class="dim small">Kayıt yok</span>') +
-    '<div class="small dim" style="margin-top:8px">Kişi bazlı ayrım Eylül 2026\'dan itibaren tutuluyor; öncesi Kenan Hoca adına görünür.</div></div>' +
+    '<div class="small dim" style="margin-top:8px">Kişi bazlı ayrım Eylül 2026\'dan itibaren tutuluyor; öncesi Kubilay Kenan Hoca adına görünür.</div></div>' +
     '<div class="card section"><div class="card-pad"><h2 class="card-title" style="margin:0">En Çok Görüşülen Öğrenciler</h2></div>' +
     '<div class="twrap"><table class="data"><thead><tr><th>Öğrenci</th><th>Grup</th><th class="num">Görüşme</th><th>Sınav / Puan</th><th>Son Sonuç</th></tr></thead>' +
     '<tbody>' + (oneCikanRows || '<tr><td colspan="5" class="empty">Bu ay görüşme kaydı yok</td></tr>') + '</tbody></table></div></div>';
@@ -3079,7 +3352,7 @@ function printAyRapor(ay) {
     '<h2>Kişi Bazlı Katkı</h2><table>' + kisiEntries.map(k => cubuk(k[0], k[1], kMax)).join('') + '</table>' +
     (ogrRows ? '<h2>En Çok Görüşülen Öğrenciler</h2><table><tr><th>Öğrenci</th><th>Grup</th><th>Görüşme</th><th>Sınav / Puan</th><th>Son Sonuç</th></tr>' + ogrRows + '</table>' : '') +
     (gorevRows ? '<h2>Ek Çalışmalar / Görevler</h2><table><tr><th>Görev</th><th>Bölüm</th><th>Durum</th><th>Yapan</th></tr>' + gorevRows + '</table>' : '') +
-    '<div class="dip">Kişi bazlı ayrım Eylül 2026\'dan itibaren tutulmaktadır; öncesindeki kayıtlar Kenan Hoca adına görünür.</div>' +
+    '<div class="dip">Kişi bazlı ayrım Eylül 2026\'dan itibaren tutulmaktadır; öncesindeki kayıtlar Kubilay Kenan Hoca adına görünür.</div>' +
     '<script>window.onload=function(){window.print();};<\/script></body></html>';
   const w = window.open('', '_blank');
   if (!w) { toast('Tarayıcı yeni pencereyi engelledi — izin verip tekrar deneyin.', 4500, true); return; }
@@ -3088,6 +3361,65 @@ function printAyRapor(ay) {
 }
 
 /* ---------- İçgörüler ---------- */
+/* v34 (madde 9): gerçek dönüşüm hunisi — kaynak başına aranan → yönlendirme → satış → net ciro.
+   Satış eşleşmesi ogrenciId üzerinden (panel aktarımı dolduruyor); öğrenci, İLK görüşmesinin
+   kaynağına yazılır ki huni katmanları aynı kişiyi iki kez saymasın. */
+function kaynakHunisi() {
+  /* huni yalnız GÖRÜŞME SONRASI alımları sayar (konum='sonra' — vSatis'teki dönüşüm tanımıyla aynı);
+     görüşme öncesi eski alımlar kaynağın başarısı gibi görünmesin */
+  const satisNet = {};
+  (DB.satislar || []).forEach(r => {
+    if (r.ogrenciId && satisGecerli(r) && r.konum === 'sonra') satisNet[r.ogrenciId] = (satisNet[r.ogrenciId] || 0) + (parseFloat(r.tutar) || 0);
+  });
+  const b = {};
+  DB.students.forEach(st => {
+    if (!st.gorusmeler.length) return;
+    const ilk = st.gorusmeler.slice().sort((x, y) => ((x.tarih || '') + (x.saat || '')).localeCompare((y.tarih || '') + (y.saat || '')))[0];
+    const k = SRC_AD[ilk.kaynak] || ilk.kaynak || 'Bilinmiyor';
+    if (!b[k]) b[k] = { aranan: 0, yonl: 0, satis: 0, ciro: 0 };
+    b[k].aranan++;
+    if (st.gorusmeler.some(g => g.yonlendirme === 'Evet')) b[k].yonl++;
+    if (satisNet[st.id]) { b[k].satis++; b[k].ciro += satisNet[st.id]; }
+  });
+  const list = Object.entries(b).sort((x, y) => y[1].ciro - x[1].ciro || y[1].aranan - x[1].aranan);
+  if (!list.length) return '';
+  const rows = list.map(([k, v]) =>
+    '<tr><td>' + esc(k) + '</td><td class="num">' + v.aranan + '</td>' +
+    '<td class="num">' + v.yonl + ' <span class="dim small">%' + (v.aranan ? Math.round(v.yonl / v.aranan * 100) : 0) + '</span></td>' +
+    '<td class="num">' + v.satis + ' <span class="dim small">%' + (v.aranan ? Math.round(v.satis / v.aranan * 100) : 0) + '</span></td>' +
+    '<td class="num"><b>' + fmtTL(v.ciro) + '</b></td></tr>').join('');
+  return '<div class="card section"><div class="card-pad"><h2 class="card-title" style="margin:0">Dönüşüm Hunisi — Kaynak Bazlı (gerçek satış verisi)</h2></div>' +
+    '<div class="twrap"><table class="data"><thead><tr><th>Kaynak (ilk görüşme)</th><th class="num">Görüşülen öğrenci</th><th class="num">Yönlendirme istedi</th><th class="num">Satın aldı</th><th class="num">Net ciro</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>' +
+    '<div class="card-pad small dim">Yalnız GÖRÜŞME SONRASI yapılan geçerli alımlar sayılır (iptal/iade ve görüşme öncesi eski alımlar hariç); öğrenci, İLK görüşmesinin kaynağına yazılır. Karta bağlanmamış alıcılar tabloda görünmez — <a data-goto="satis">Ders Alanlar</a>\'daki "kart yok" listesinden bağlayın.</div></div>';
+}
+/* v34 (madde 9): sıcak aday listesi — yönlendirme istemiş ama satın almamış öğrenciler */
+function sicakListe() {
+  /* satın alanlar ogrenciId + telefon anahtarıyla elenir (satisAliciSeti/aliciMi v33 kalıbı) —
+     karta bağlanmamış ama telefonu eşleşen alıcı "almadı" diye listelenmesin */
+  const alSet = satisAliciSeti();
+  const kuyrukta = new Set(DB.queue.filter(q => q.durum === 'Bekliyor' && q.ogrenciId).map(q => q.ogrenciId));
+  return DB.students
+    .filter(st => st.gorusmeler.some(g => g.yonlendirme === 'Evet') &&
+      aliciMi(alSet, st.tel, st.ad, st.id) !== 2 && st.kayitDurumu !== 'Kayıt oldu')
+    .map(st => ({ st, son: sonGorusme(st), kuyrukta: kuyrukta.has(st.id) }))
+    .sort((a, b) => (b.son || '').localeCompare(a.son || ''));
+}
+function vSicakKart() {
+  const list = sicakListe();
+  if (!list.length) return '';
+  const SINIR = 12;
+  const rows = list.slice(0, UI.sicakTum ? list.length : SINIR).map(x =>
+    '<div class="gbar temassiz-row">' +
+    '<span class="chip ' + (gunFarki(x.son) !== null && gunFarki(x.son) <= 14 ? 'warn' : 'src') + '">' + (x.son ? fmtDate(x.son) : '—') + '</span>' +
+    '<span class="small"><a data-goto="ogrenci:' + esc(x.st.id) + '"><b>' + esc(x.st.ad) + '</b></a> ' + grpChip(x.st.grup) + '</span>' +
+    '<span class="nowrap">' + waChip(x.st.tel, '', '💬') +
+    (x.kuyrukta ? ' <span class="chip src">kuyrukta</span>' :
+      (ROL === 'admin' ? ' <button class="btn sm" data-action="kuyruk-sec" data-id="' + esc(x.st.id) + '">📞 Kuyruğa ekle</button>' : '')) + '</span></div>').join('');
+  return '<div class="card section card-pad"><h2 class="card-title">🔥 Sıcak Adaylar — yönlendirme istedi, henüz almadı (' + list.length + ')</h2>' +
+    '<div class="small dim" style="margin-bottom:8px">Görüşmede "yönlendirme istiyor" denmiş ama panelde geçerli satışı ve kayıt işareti olmayan öğrenciler — en taze temas en üstte.</div>' +
+    rows + (list.length > SINIR ? '<div class="small" style="margin-top:8px"><a data-action="sicak-tum">' + (UI.sicakTum ? 'Kısalt ↑' : 'Tümünü gör (' + list.length + ') →') + '</a></div>' : '') + '</div>';
+}
 function vIcgoru() {
   const all = allInterviews();
   const saatler = [];
@@ -3169,7 +3501,7 @@ function vIcgoru() {
 
   return '<div class="page-head"><div><h1>İçgörüler</h1>' +
     '<div class="sub">' + all.length + ' görüşme kaydından çıkarılan eğilimler</div></div></div>' +
-    projeksiyon +
+    projeksiyon + kaynakHunisi() + vSicakKart() +
     '<div class="card section card-pad"><h2 class="card-title">Saate Göre Görüşmeler</h2>' +
     barChartSVG(saatDilim, { baslik: 'Saat dağılımı', birim: ' görüşme', seyrek: true }) +
     '<div class="small dim">En verimli saat: <b>' + esc(enVerimli.l) + '</b> (' + enVerimli.n + ' görüşme)</div></div>' +
@@ -3252,6 +3584,33 @@ function agsFiltre(list) {
 }
 function agsSatir(k, v) { return v ? '<div><div class="k">' + esc(k) + '</div>' + esc(v) + '</div>' : ''; }
 
+/* v34 (madde 8): filtredeki BEKLEYEN adaylardan, Aranacaklar'da bekleyen kaydı olmayanlar.
+   Telefonu OLMAYAN adaylar aktarılmaz (arama kuyruğunda numarasız satır işe yaramaz);
+   aynı telefonun ikinci formu (parti içi mükerrer) da elenir.
+   Sıra: telefonla aranmak isteyenler önce, sonra form sırası (n). */
+function agsAktarAdaylari(list) {
+  const varOlan = new Set();
+  DB.queue.forEach(q => {
+    if (q.durum !== 'Bekliyor') return;
+    const t = normTel(q.tel); if (t) varOlan.add('t' + t);
+    const a = adKey(q.ad); if (a) varOlan.add('a' + a);
+    if (q.agsId) varOlan.add('g' + q.agsId);
+  });
+  const partide = new Set();
+  return list.filter(a => {
+    if ((a.durum || 'Bekliyor') !== 'Bekliyor') return false;
+    if (varOlan.has('g' + a.id)) return false;
+    const t = normTel(a.tel);
+    if (!t) return false; /* telefonsuz aday: kuyruğa değil, AGS sayfasından e-postayla dönülür */
+    if (varOlan.has('t' + t) || partide.has('t' + t)) return false;
+    partide.add('t' + t);
+    return true;
+  }).sort((x, y) => {
+    const tx = /telefon/i.test(x.ulasim || '') ? 0 : 1, ty = /telefon/i.test(y.ulasim || '') ? 0 : 1;
+    return tx - ty || (parseInt(x.n, 10) || 0) - (parseInt(y.n, 10) || 0);
+  });
+}
+
 function vAgs() {
   const all = agsList();
   const n = { bekliyor: 0, gorusuldu: 0, ulasilamadi: 0 };
@@ -3260,8 +3619,20 @@ function vAgs() {
   const pct = all.length ? (n.gorusuldu / all.length * 100).toFixed(1) : 0;
   const seg = (v, ad) => '<button data-action="ags-d" data-v="' + v + '"' + (UI.agsD === v ? ' class="active"' : '') + '>' + ad + '</button>';
   const opt = (map, sec, bos) => '<option value="">' + bos + '</option>' + Object.keys(map).map(k => '<option value="' + k + '"' + (sec === k ? ' selected' : '') + '>' + esc(map[k]) + '</option>').join('');
+  const aktarilabilir = ROL === 'admin' ? agsAktarAdaylari(list) : [];
+  const aktarHtml = UI.agsAktar && ROL === 'admin' ?
+    '<div class="card card-pad section"><h2 class="card-title">📞 Bekleyenleri Aranacaklar Kuyruğuna Aktar</h2>' +
+    '<div class="small dim" style="margin-bottom:8px">Filtredeki <b>' + aktarilabilir.length + '</b> bekleyen aday (telefonu olmayanlar ve kuyrukta zaten bekleyen kaydı olanlar atlandı) günlük kapasiteyle ileri günlere dağıtılır. Telefonla aranmak isteyenler öne alınır; aday kartı bağlantısı (agsId) kuyruğa yazılır, arandığında iki liste birbirini günceller.</div>' +
+    '<form data-action="ags-kuyruk-aktar"><div class="fgrid">' +
+    '<div class="field"><label>Aktarılacak aday sayısı</label><input type="number" name="adet" min="1" max="' + Math.min(60, aktarilabilir.length || 1) + '" value="' + Math.min(24, aktarilabilir.length || 1) + '"></div>' +
+    '<div class="field"><label>Günlük arama kapasitesi</label><input type="number" name="kapasite" min="1" max="30" value="8"></div>' +
+    '<div class="field"><label>Başlangıç günü</label><input type="date" name="baslangic" value="' + gunEkle(todayISO(), 1) + '"></div>' +
+    '</div><div class="form-actions"><button class="btn primary" type="submit"' + (aktarilabilir.length ? '' : ' disabled') + '>Kuyruğa Aktar</button>' +
+    '<button class="btn" type="button" data-action="ags-aktar-kapat">Vazgeç</button></div></form></div>' : '';
   return '<div class="page-head"><div><h1>AGS &amp; YDS Adayları</h1>' +
-    '<div class="sub">Aday formu yanıtları · her aday için özet, yönetim paneli durumu ve eski öğrenci indirimi hakkı · aradıkça işaretleyin, not ve ses notu ekleyin</div></div></div>' +
+    '<div class="sub">Aday formu yanıtları · her aday için özet, yönetim paneli durumu ve eski öğrenci indirimi hakkı · aradıkça işaretleyin, not ve ses notu ekleyin</div></div>' +
+    '<div class="head-actions">' + (ROL === 'admin' && !UI.agsAktar ? '<button class="btn" data-action="ags-aktar-ac">📞 Bekleyenleri Kuyruğa Aktar</button>' : '') + '</div></div>' +
+    aktarHtml +
     '<div class="tiles" style="margin-bottom:14px">' +
     '<div class="tile t-amber"><div class="n">' + n.bekliyor + '</div><div class="l">Bekleyen</div></div>' +
     '<div class="tile t-green"><div class="n">' + n.gorusuldu + '</div><div class="l">Görüşüldü</div></div>' +
@@ -3488,6 +3859,8 @@ document.addEventListener('click', e => {
     const k = document.querySelector('[data-ags="' + id + '"]');
     if (k) k.scrollIntoView({ block: 'nearest' });
   }
+  else if (act === 'ags-aktar-ac') { UI.agsAktar = true; render(); }    /* v34 */
+  else if (act === 'ags-aktar-kapat') { UI.agsAktar = false; render(); } /* v34 */
   else if (act === 'ags-d') { UI.agsD = el.dataset.v; render(); }
   else if (act === 'ags-durum') {
     const a = agsById(id);
@@ -3534,6 +3907,38 @@ document.addEventListener('change', e => {
     }
     el.value = '';
   }
+});
+/* v34: AGS → kuyruk toplu aktarım formu */
+document.addEventListener('submit', e => {
+  const form = e.target;
+  if (!DB || form.dataset.action !== 'ags-kuyruk-aktar') return;
+  e.preventDefault();
+  const d = {};
+  new FormData(form).forEach((v, k) => { d[k] = String(v).trim(); });
+  const adet = Math.max(1, Math.min(60, parseInt(d.adet, 10) || 24));
+  const kapasite = Math.max(1, Math.min(30, parseInt(d.kapasite, 10) || 8));
+  let gun = d.baslangic && /^\d{4}-\d{2}-\d{2}$/.test(d.baslangic) ? d.baslangic : gunEkle(todayISO(), 1);
+  if (gun < todayISO()) gun = todayISO();
+  const pazarAtla = t => {
+    let g = t;
+    while (new Date(g.slice(0, 4), Number(g.slice(5, 7)) - 1, Number(g.slice(8, 10))).getDay() === 0) g = gunEkle(g, 1);
+    return g;
+  };
+  gun = pazarAtla(gun);
+  const hedefler = agsAktarAdaylari(agsFiltre(agsList())).slice(0, adet);
+  if (!hedefler.length) { toast('Aktarılacak bekleyen aday yok.', 3200, true); return; }
+  let kalan = kapasite;
+  const rows = hedefler.map(a => {
+    if (kalan === 0) { gun = pazarAtla(gunEkle(gun, 1)); kalan = kapasite; }
+    kalan--;
+    return {
+      ogrenciId: a.ogrenciId || '', ad: a.ad, tel: normTel(a.tel),
+      eklenme: todayISO(), planTarih: gun, oncelik: '', agsId: a.id, ekleyen: 'ags-aktarim'
+    };
+  });
+  UI.agsAktar = false;
+  persist('addQueueBatch', { rows: rows }, rows.length + ' aday kuyruğa gönderildi (' + fmtDate(rows[0].planTarih) + ' – ' + fmtDate(rows[rows.length - 1].planTarih) + '; sunucu çakışanları atlar) 📞')
+    .then(ok => { if (!ok) UI.agsAktar = true; });
 });
 let agsAraTimer = null;
 document.addEventListener('input', e => {
