@@ -641,10 +641,14 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 .ar-kod.g3 { background: var(--warn-soft); color: var(--warn); }
 .ar-kod.g4, .ar-kod.g5 { background: var(--ok-soft); color: var(--ok); }
 .ar-ad { display: grid; gap: 1px; min-width: 0; }
+.ar-ad-ust { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .ar-ad > .small { font-size: 11px; }
-.ar-50 { font-size: 10px; font-weight: 700; color: var(--ok); background: var(--ok-soft); border-radius: 5px; padding: 1px 4px; margin-left: 6px; }
-.ar-yildiz { color: var(--accent); margin-left: 4px; }
+.ar-50 { font-size: 10px; font-weight: 700; color: var(--ok); background: var(--ok-soft); border-radius: 5px; padding: 1px 4px; }
+.ar-yildiz { color: var(--accent); }
+.ar-geri { display: none; margin-bottom: 10px; }
 .ar-kisi-ust { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ar-kisi-ust .btn { white-space: nowrap; }
+.konsol-sag table.data td.num, .konsol-sag table.data th.num { white-space: nowrap; }
 .ar-kisi-ust h2 { margin: 0 0 6px; }
 .ar-tel { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 14px; }
 .kunye { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; margin: 0; }
@@ -661,7 +665,18 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 .ok-yazi { color: var(--ok); }
 @media (max-width: 1020px) {
   .konsol { grid-template-columns: 1fr; }
-  .konsol-sol { position: static; max-height: 60vh; }
+  .konsol-sol { position: static; max-height: none; }
+  .ar-liste { max-height: 64vh; }
+  .ar-cipler { grid-template-columns: repeat(2, 1fr); }
+  .ar-cip { flex-direction: row; align-items: baseline; justify-content: space-between; padding: 9px 10px; }
+  /* telefonda kişi açıkken liste gizlenir; "‹ Liste" ile geri dönülür */
+  .konsol.secili .konsol-sol { display: none; }
+  .konsol.secili .ar-geri { display: inline-flex; }
+  .kunye { grid-template-columns: 1fr 1fr; }
+  .ar-wa-kart .bas { flex-wrap: wrap; }
+}
+@media (max-width: 520px) {
+  .kunye { grid-template-columns: 1fr; }
 }
 
 
@@ -2962,15 +2977,16 @@ function vArama() {
     const g = arSonGorusme(k);
     return '<button class="ar-satir' + (sec && sec.id === k.id ? ' active' : '') + '" data-action="ar-sec" data-id="' + esc(k.id) + '">' +
       '<span class="ar-kod g' + esc(k.kod[0]) + '">' + esc(k.kod) + '</span>' +
-      '<span class="ar-ad"><b>' + esc(k.ad) + '</b>' + (k.hak === 'var' ? '<span class="ar-50">%50</span>' : '') +
-      (Number(k.oncelik) ? '<span class="ar-yildiz">★</span>' : '') +
+      '<span class="ar-ad"><span class="ar-ad-ust"><b>' + esc(k.ad) + '</b>' +
+      (k.hak === 'var' ? '<span class="ar-50">%50</span>' : '') +
+      (Number(k.oncelik) ? '<span class="ar-yildiz">★</span>' : '') + '</span>' +
       '<span class="dim small">' + esc(arTel(k.tel) || 'numara yok') + (g ? ' · ' + fmtDate(g.tarih) + ' arandı' : '') + '</span></span></button>';
   }).join('') || '<p class="dim" style="padding:14px">Bu süzgeçte kimse kalmadı.</p>';
 
   return '<div class="page-head"><div><h1>Arama Konsolu</h1><div class="sub">Panelin dört arama listesi · ' +
     ARAMA.kisiler.length + ' kişi · kişiye özel konuşma metni, fiyat ve WhatsApp şablonları</div></div>' +
     '<div class="page-actions"><button class="btn" data-action="ar-yenile">Listeyi yenile</button></div></div>' +
-    '<div class="konsol">' +
+    '<div class="konsol' + (sec ? ' secili' : '') + '">' +
     '<div class="card konsol-sol">' +
     '<div class="ar-cipler">' + cipler + '</div>' +
     '<div class="ar-sekmeler">' + sekmeler + '</div>' +
@@ -3107,7 +3123,9 @@ function arDetay(k) {
     '<button class="btn" type="button" data-action="ar-kuyruk" data-id="' + esc(k.id) + '">Tekrar aranacak → kuyruğa ekle</button>' +
     '<button class="btn" type="button" data-action="ar-sonraki">Sonraki kişi ›</button></div></form></div>';
 
-  return '<div class="card card-pad ar-kisi"><div class="ar-kisi-ust"><div><h2>' + esc(k.ad) + '</h2>' +
+  return '<div class="card card-pad ar-kisi">' +
+    '<button class="btn small ar-geri" data-action="ar-kapat">‹ Liste</button>' +
+    '<div class="ar-kisi-ust"><div><h2>' + esc(k.ad) + '</h2>' +
     '<div class="chips">' + etiket + '</div></div>' +
     (st ? '<a class="btn small" data-goto="ogrenci:' + esc(st.id) + '">Kartı aç</a>' : '') + '</div>' +
     '<div class="ar-tel">' + telKutu + '</div>' + kunye +
@@ -3395,7 +3413,8 @@ document.addEventListener('click', e => {
   else if (act === 'sicak-tum') { UI.sicakTum = !UI.sicakTum; render(); }              /* v34 */
   else if (act === 'ar-liste') { UI.arListe = el.dataset.v; UI.arSec = null; UI.arKod = 'hepsi'; render(); }
   else if (act === 'ar-sekme') { UI.arSekme = el.dataset.v; UI.arSec = null; UI.arKod = 'hepsi'; render(); }
-  else if (act === 'ar-sec') { UI.arSec = el.dataset.id; render(); }
+  else if (act === 'ar-sec') { UI.arSec = el.dataset.id; render(); const v = document.getElementById('view'); if (window.innerWidth <= 1020 && v) v.scrollIntoView({ block: 'start' }); }
+  else if (act === 'ar-kapat') { UI.arSec = null; render(); }
   else if (act === 'ar-temizle') { UI.arKod = 'hepsi'; UI.arHak = 'hepsi'; UI.arDurum = 'bekleyen'; UI.arQ = ''; render(); }
   else if (act === 'ar-yenile') { arYukle(true); render(); }
   else if (act === 'ar-kopya') { copyText(el.dataset.v); }
