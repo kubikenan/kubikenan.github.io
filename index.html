@@ -906,6 +906,49 @@ function sayi(v) {
   const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
   return isNaN(n) ? null : n;
 }
+/* ---------- v37: DELTA YANIT ----------
+   Sunucu bölüm damgaları tutuyor; istemci elindekini gönderiyor, yalnız değişen
+   bölümler geliyor. Tam veri localStorage'da saklanır — değişiklik yoksa yanıt
+   birkaç KB ve açılış anında biter. Depolama dolarsa önbellek kapanır, akış eskisi gibi çalışır. */
+const ONB = 'kh-onb', ONB_ARAMA = 'kh-onb-arama';
+let HAM = null;          /* sunucudan gelen ham bölümlerin birleşimi */
+let REV = null;          /* elimizdeki bölüm damgaları */
+let onbKapali = false;   /* kota hatası olursa true */
+
+function onbellekOku(user) {
+  try {
+    const h = JSON.parse(lsGet(ONB) || 'null');
+    return (h && h.user === user && h.data) ? h : null;
+  } catch (e) { return null; }
+}
+function onbellekYaz(user, rol, rev, ham) {
+  if (onbKapali) return;
+  const paket = JSON.stringify({ user: user, rol: rol, rev: rev, data: ham, zaman: Date.now() });
+  try { localStorage.setItem(ONB, paket); }
+  catch (e) {
+    lsDel(ONB_ARAMA); /* önce büyük listeyi bırak, bir daha dene */
+    try { localStorage.setItem(ONB, paket); }
+    catch (e2) { onbKapali = true; lsDel(ONB); }
+  }
+}
+function onbellekSil() { lsDel(ONB); lsDel(ONB_ARAMA); HAM = null; REV = null; }
+/* gelen yanıtı (tam ya da delta) uygula: HAM + önbellek + DB tazelenir */
+function veriUygula(y, user, rol) {
+  let ham;
+  if (y && y.delta) {
+    const temel = HAM || ((onbellekOku(user) || {}).data) || {};
+    ham = Object.assign({}, temel, y.bolumler || {});
+    ham.rev = y.rev;
+  } else {
+    ham = y;
+  }
+  HAM = ham;
+  REV = ham.rev || null;
+  onbellekYaz(user, rol, REV, ham);
+  DB = normalizeDB(ham);
+  return DB;
+}
+
 function normalizeDB(d) {
   d.queue = d.queue || [];
   d.templates = d.templates || [];
@@ -973,8 +1016,8 @@ async function persist(action, payload, flashMsg) {
   const btns = document.querySelectorAll('button[type=submit],[data-action]');
   btns.forEach(b => { if (b.tagName === 'BUTTON') b.disabled = true; });
   try {
-    const data = await srv('saveAction', USER, PASS, action, payload);
-    DB = normalizeDB(data);
+    const data = await srv('saveAction', USER, PASS, action, Object.assign({ _rev: REV }, payload));
+    veriUygula(data, USER, ROL);
     render();
     toast(flashMsg + ' ✓');
     return true;
@@ -1423,12 +1466,18 @@ async function tryLogin(user, pass) {
   if (!pass) return;
   loginScreen('', true);
   try {
-    const data = await srv('getData', user, pass);
+    const onb = onbellekOku(user);
+    let data = await srv('getData', user, pass, onb ? onb.rev : null);
     PASS = pass; USER = user;
     ROL = data.rol === 'viewer' ? 'viewer' : 'admin';
     ADIM = data.ad || '';
+    /* rol değiştiyse (maskeli/maskesiz veri) önbellek geçersiz — tam veri iste */
+    if (data.delta && onb && onb.rol && onb.rol !== ROL) {
+      onbellekSil();
+      data = await srv('getData', user, pass, null);
+    }
     delete data.rol; delete data.ad;
-    DB = normalizeDB(data);
+    veriUygula(data, user, ROL);
     lsSet('kh-user', user);
     lsSet('kh-pass', pass);
     lsSet('kh-t', String(Date.now()));
@@ -1441,6 +1490,7 @@ async function tryLogin(user, pass) {
 }
 function logout() {
   lsDel('kh-pass'); lsDel('kh-user'); lsDel('kh-t');
+  onbellekSil();
   PASS = null; DB = null;
   loginScreen('', false);
 }
@@ -2714,8 +2764,16 @@ function arVeri(k) {
 function arYukle(zorla) {
   if (!zorla && (ARAMA.durum === 'yukleniyor' || ARAMA.durum === 'hazir')) return;
   ARAMA.durum = 'yukleniyor'; ARAMA.hata = '';
-  srv('getArama', USER, PASS).then(rows => {
-    ARAMA.kisiler = (rows || []).map(r => { r._v = null; return r; });
+  let onb = null;
+  if (!zorla) { try { onb = JSON.parse(lsGet(ONB_ARAMA) || 'null'); } catch (e) { onb = null; } }
+  srv('getArama', USER, PASS, onb ? onb.rev : null).then(y => {
+    let rows;
+    if (y && y.degismedi && onb) rows = onb.rows;               /* ~1 MB hiç inmedi */
+    else {
+      rows = (y && y.rows) || (Array.isArray(y) ? y : []);
+      if (!onbKapali && y && y.rev) { try { localStorage.setItem(ONB_ARAMA, JSON.stringify({ rev: y.rev, rows: rows })); } catch (e) {} }
+    }
+    ARAMA.kisiler = rows.map(r => { r._v = null; return r; });
     ARAMA.durum = 'hazir';
     if (NAV.page === 'arama') render();
   }).catch(e => {
