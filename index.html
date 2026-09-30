@@ -1575,7 +1575,10 @@ function sistemUyarilari() {
   let gunler = [];
   try { gunler = JSON.parse(DB.settings.eksikGunler || '[]'); } catch (e) {}
   /* bekçi günde bir koşar; gün SONRADAN işlendiyse bandı elimizdeki güncel veriyle sustur */
-  if (Array.isArray(gunler)) gunler = gunler.filter(d => !byDate(d).length);
+  /* v35: görüşmesiz ama görevi ya da gün notu olan gün de işlenmiş sayılır */
+  if (Array.isArray(gunler)) gunler = gunler.filter(d => !byDate(d).length
+    && !(DB.tasks || []).some(t => String(t.tarih || '').slice(0, 10) === d)
+    && !String((DB.dailyNotes || {})[d] || '').trim());
   if (Array.isArray(gunler) && gunler.length) {
     h += '<div class="banner">📭 Gün sonu işlenmemiş görünen günler: <b>' +
       gunler.map(d => fmtDate(d)).join(', ') + '</b> — <a data-goto="rapor:' + esc(gunler[gunler.length - 1]) + '">rapora git</a></div>';
