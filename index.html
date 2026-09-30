@@ -615,6 +615,55 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 .topbar .lockup.sm .mark { width: 26px; height: 26px; }
 .topbar .lockup.sm b { font-size: 14px; font-weight: 800; }
 
+/* ---------- v36: Arama Konsolu ---------- */
+.konsol { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.konsol-sol { position: sticky; top: 16px; max-height: calc(100vh - 110px); display: flex; flex-direction: column; overflow: hidden; }
+.konsol-sag { min-width: 0; }
+.ar-cipler { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px 12px 0; }
+.ar-cip { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 4px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; color: inherit; }
+.ar-cip b { font-size: 12px; }
+.ar-cip span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ar-cip.active { background: var(--brand-dark, #47791d); border-color: var(--brand-dark, #47791d); color: #fff; }
+.ar-cip.active span { color: rgba(255, 255, 255, .8); }
+.ar-sekmeler { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px; }
+.ar-sekme { border: 0; border-bottom: 2px solid transparent; background: none; padding: 7px 4px; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted); }
+.ar-sekme.active { color: var(--text); border-bottom-color: var(--brand, #9BCD56); }
+.ar-suzgec { padding: 0 12px 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.ar-suzgec label { display: grid; gap: 3px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.ar-suzgec select, .ar-ara { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
+.ar-sonuc { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.ar-liste { overflow-y: auto; flex: 1; }
+.ar-satir { width: 100%; display: flex; gap: 9px; align-items: flex-start; text-align: left; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); background: none; cursor: pointer; font: inherit; color: inherit; }
+.ar-satir:hover { background: var(--hover, rgba(0, 0, 0, .03)); }
+.ar-satir.active { background: var(--brand-soft, #EFF7E3); }
+.ar-kod { font-size: 11px; font-weight: 700; padding: 2px 5px; border-radius: 6px; background: var(--chip-bg, #eef1f5); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ar-kod.g2 { background: #efe4ff; color: #5b3aa8; }
+.ar-kod.g3 { background: #fff0d6; color: #8a5a00; }
+.ar-kod.g4, .ar-kod.g5 { background: #dff3e2; color: #1d6b32; }
+.ar-ad { display: grid; gap: 1px; min-width: 0; }
+.ar-ad > .small { font-size: 11px; }
+.ar-50 { font-size: 10px; font-weight: 700; color: #1d6b32; background: #dff3e2; border-radius: 5px; padding: 1px 4px; margin-left: 6px; }
+.ar-yildiz { color: var(--brand-dark, #47791d); margin-left: 4px; }
+.ar-kisi-ust { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ar-kisi-ust h2 { margin: 0 0 6px; }
+.ar-tel { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 14px; }
+.kunye { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; margin: 0; }
+.kunye .alan dt { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.kunye .alan dd { margin: 0; font-size: 13px; }
+.ar-metin p { margin: 0 0 10px; line-height: 1.55; }
+.ar-metin p.kilit { border-left: 3px solid var(--brand, #9BCD56); padding-left: 10px; }
+.ar-metin small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.ar-wa { display: grid; gap: 10px; }
+.ar-wa-kart { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.ar-wa-kart .bas { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ar-wa-kart .bas span { display: flex; gap: 6px; }
+.ar-wa-kart p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.ok-yazi { color: #1d6b32; }
+@media (max-width: 1020px) {
+  .konsol { grid-template-columns: 1fr; }
+  .konsol-sol { position: static; max-height: 60vh; }
+}
+
 
 /* ---------- AGS & YDS Adayları ---------- */
 .ags-card { border-left-color: var(--warn); }
@@ -1166,10 +1215,11 @@ function matchStudent(st, q) {
 
 /* ---------- görünüm durumu ---------- */
 const NAV = { page: 'dash', arg: '' };
-const UI = { q: '', grup: '', ay: '', raporDate: '', tab: 'gorusmeler', gorevForm: false, takipForm: false, editIv: null, editTask: null, editTakip: null };
-const PAGES = ['dash', 'kuyruk', 'ogrenciler', 'ogrenci', 'gorusmeler', 'tskampanya', 'ags', 'satis', 'yeni', 'rapor', 'ayrapor', 'icgoru', 'hafta', 'takip', 'sablon', 'katalog', 'kisiler', 'silinen'];
+const UI = { arListe: 'İleri', arSekme: 'y', arKod: 'hepsi', arHak: 'hepsi', arDurum: 'bekleyen', arQ: '', arSec: null,
+  q: '', grup: '', ay: '', raporDate: '', tab: 'gorusmeler', gorevForm: false, takipForm: false, editIv: null, editTask: null, editTakip: null };
+const PAGES = ['dash', 'kuyruk', 'arama', 'ogrenciler', 'ogrenci', 'gorusmeler', 'tskampanya', 'ags', 'satis', 'yeni', 'rapor', 'ayrapor', 'icgoru', 'hafta', 'takip', 'sablon', 'katalog', 'kisiler', 'silinen'];
 /* yalniz yoneticiye acik sayfalar (izleyici bunlara giremez) */
-const ADMIN_PAGES = ['yeni', 'kuyruk', 'katalog', 'kisiler', 'silinen'];
+const ADMIN_PAGES = ['yeni', 'kuyruk', 'arama', 'katalog', 'kisiler', 'silinen'];
 
 /* Gezinme, tarayıcı geçmişine hash olarak yazılır: trackpad'de geri
    kaydırma siteden çıkarmaz, sitenin içinde bir önceki sayfaya döner. */
@@ -1249,6 +1299,7 @@ function rowActions(kind, id, extra) {
 const MENU = [
   ['dash', 'Ana Sayfa', 'home'],
   ['kuyruk', 'Aranacaklar', 'phone'],
+  ['arama', 'Arama Konsolu', 'phone'],
   ['yeni', 'Yeni Görüşme', 'plus'],
   ['ogrenciler', 'Öğrenciler', 'users'],
   ['gorusmeler', 'Tüm Görüşmeler', 'chat'],
@@ -1268,7 +1319,7 @@ const MENU = [
 /* v30: yönetim panelindeki gibi bölümlü menü — anahtarlar MENU'deki sayfalar */
 const MENU_BOLUM = [
   ['', ['dash']],
-  ['Öğrenci Takibi', ['kuyruk', 'yeni', 'ogrenciler', 'gorusmeler', 'takip']],
+  ['Öğrenci Takibi', ['kuyruk', 'arama', 'yeni', 'ogrenciler', 'gorusmeler', 'takip']],
   ['Kampanyalar', ['tskampanya', 'ags', 'satis']],
   ['Raporlar', ['rapor', 'ayrapor', 'hafta', 'icgoru']],
   ['Sistem', ['sablon', 'katalog', 'kisiler', 'silinen']]
@@ -1445,6 +1496,7 @@ function render() {
   if (!view) return;
   if (NAV.page === 'dash') view.innerHTML = vDashboard();
   else if (NAV.page === 'kuyruk') view.innerHTML = vQueue();
+  else if (NAV.page === 'arama') { view.innerHTML = vArama(); if (ARAMA.durum === 'bos') arYukle(); }
   else if (NAV.page === 'ogrenciler') view.innerHTML = vStudents();
   else if (NAV.page === 'ogrenci') view.innerHTML = vStudent(NAV.arg);
   else if (NAV.page === 'gorusmeler') view.innerHTML = vAllInterviews();
@@ -2606,6 +2658,385 @@ function vNewInterview(sid) {
     '</form></div>';
 }
 
+/* ---------- v36: Arama Konsolu — panelin dört arama listesi ---------- */
+const AR_SEVIYE = {
+  'Temel': { f: [['2027 İlkbahar Temel Canlı', '23.900', '33.460', '47.800'], ['Temel Kayıttan', '19.850', '27.790', '39.700']], bas: '21 Eylül 2026', son: '21 Eylül 2026', kitap: '9 kitap ücretsiz' },
+  'İleri': { f: [['2027 İlkbahar İleri Canlı', '21.650', '30.310', '43.300'], ['İleri Kayıttan', '17.900', '25.060', '35.800']], bas: '30 Kasım 2026', son: '23 Kasım 2026', kitap: '8 kitap ücretsiz' },
+  'Pro Grup': { f: [['2027 İlkbahar Pro Canlı', '19.400', '27.160', '38.800'], ['Pro Kayıttan', '17.150', '24.010', '34.300']], bas: '22 Aralık 2026', son: '14 Aralık 2026', kitap: '' }
+};
+const AR_FIYAT = [
+  { g: '2026 Sonbahar — dönem başladı, yalnız kayıttan satılıyor', s: [
+    ['İleri Seviye Kayıttan', 33700, null], ['İleri Seviye Kayıttan + Word Up', 37700, null],
+    ['Pro Grup Canlı', 36500, null], ['Pro Grup Canlı + Word Up', 40500, null],
+    ['Pro Grup Canlı + Okuma Stratejileri', 41100, null], ['Pro Grup Canlı + Word Up + Okuma', 45000, null],
+    ['Pro Grup Kayıttan', 32300, null], ['Pro Grup Kayıttan + Word Up', 36300, null],
+    ['Pro Grup Kayıttan + Okuma Stratejileri', 36800, null], ['Pro Grup Kayıttan + Word Up + Okuma', 40800, null],
+    ['Temel Seviye Kayıttan', 37400, null], ['Temel Seviye Kayıttan + Word Up', 41300, null]] },
+  { g: '2027 İlkbahar — erken kayıt fiyatı (liste üstü çizili)', s: [
+    ['İleri Seviye Canlı', 30310, 43300], ['İleri Seviye Canlı + Word Up', 33250, 47500],
+    ['İleri Seviye Kayıttan', 25060, 35800], ['İleri Seviye Kayıttan + Word Up', 28000, 40000],
+    ['Pro Grup Canlı', 27160, 38800], ['Pro Grup Canlı + Word Up', 29680, 42400],
+    ['Pro Grup Canlı + Okuma Stratejileri', 30520, 43600], ['Pro Grup Canlı + Word Up + Okuma', 33460, 47800],
+    ['Pro Grup Kayıttan', 24010, 34300], ['Pro Grup Kayıttan + Word Up', 26950, 38500],
+    ['Pro Grup Kayıttan + Okuma Stratejileri', 27370, 39100], ['Pro Grup Kayıttan + Word Up + Okuma', 30310, 43300],
+    ['Temel Seviye Canlı', 33460, 47800], ['Temel Seviye Canlı + Word Up', 36400, 52000],
+    ['Temel Seviye Kayıttan', 27790, 39700], ['Temel Seviye Kayıttan + Word Up', 30730, 43900]] },
+  { g: 'Ek ürünler — Word Up · Soru Çözüm Kampı · Okuma dersleri', s: [
+    ['Word Up Kelime Dersi', 7000, null], ['Word Up YKS-DİL', 4000, null],
+    ['Word Up + Okuma Stratejileri (paket)', 11900, 15000],
+    ['Soru Çözüm Kampı · 2026 Sonbahar Canlı', 7000, null], ['Soru Çözüm Kampı · 2026 Sonbahar Kayıttan', 6000, null],
+    ['Soru Çözüm Kampı · eski dönemler (kayıttan)', 6000, null],
+    ['Kayıttan Okuma Stratejileri, Çeviri ve Kelime', 8000, null],
+    ['Read Wiser Kayıttan Okuma Dersi', 15000, null], ['Read Wiser + Word Up', 18500, null]] },
+  { g: 'Kampanya paketleri — %50 ile birleşmez, büroyla görüşülür', kampanya: true, s: [
+    ['AGS Kampanyası · 2027 İlkbahar Pro Canlı + Kamp 6', 25000, 44800],
+    ['AGS Kampanyası · 2027 İlkbahar Pro Kayıttan + Kamp 6', 23000, 40300],
+    ['AGS Kampanyası · 2026 Sonbahar Pro Canlı + Kamp 6', 24000, 42500],
+    ['AGS Kampanyası · 2026 Sonbahar Pro Kayıttan + Kamp 6', 21000, 38300]] }
+];
+const AR_LISTELER = ['İleri', 'Pro Grup', 'Temel', 'YÖKDİL'];
+const AR_LISTE_ADI = { 'İleri': 'İleri Seviye', 'Pro Grup': 'Pro Grup', 'Temel': 'Temel Seviye', 'YÖKDİL': 'YÖKDİL' };
+const AR_ALT = { '1': 'çalışıyor', '2': 'hiç aranmamış', '3': 'yanıt yok', '4': 'belirsiz', '5': 'çalışmıyor', '6': 'ulaşılamıyor' };
+const AR_GRUP = { '1': 'Kaydı yok', '2': 'Dondurmuş', '3': 'Dersi açık', '4': '2026 Sonbahar', '5': '2027 İlkbahar' };
+const AR_GRUP_KISA = { '1': '', '2': 'Dondurmuş', '3': 'Dersi açık', '4': 'Paketi var', '5': 'Paketi var' };
+const AR_BAS = '2026-09-30'; /* bu turun başlangıcı — önceki görüşmeler "tur dışı" sayılır */
+const ARAMA = { durum: 'bos', kisiler: [], hata: '' };
+
+function arKatAd(kod) {
+  const g = AR_GRUP_KISA[kod[0]] || '', a = AR_ALT[kod[2]] || '';
+  return kod + ' ' + (g ? g + ' · ' + a : a.charAt(0).toLocaleUpperCase('tr') + a.slice(1));
+}
+function arSv(k) { return AR_SEVIYE[k.seviye] || AR_SEVIYE['İleri']; }
+function arVeri(k) {
+  if (!k._v) { try { k._v = JSON.parse(k.veri || '{}'); } catch (e) { k._v = {}; } }
+  return k._v;
+}
+function arYukle(zorla) {
+  if (!zorla && (ARAMA.durum === 'yukleniyor' || ARAMA.durum === 'hazir')) return;
+  ARAMA.durum = 'yukleniyor'; ARAMA.hata = '';
+  srv('getArama', USER, PASS).then(rows => {
+    ARAMA.kisiler = (rows || []).map(r => { r._v = null; return r; });
+    ARAMA.durum = 'hazir';
+    if (NAV.page === 'arama') render();
+  }).catch(e => {
+    ARAMA.durum = 'hata'; ARAMA.hata = e.message || String(e);
+    if (NAV.page === 'arama') render();
+  });
+}
+/* bu turda yapılmış son görüşme (site kaydı) */
+function arSonGorusme(k) {
+  const st = k.ogrenciId ? stById(k.ogrenciId) : null;
+  if (!st || !st.gorusmeler || !st.gorusmeler.length) return null;
+  const tur = st.gorusmeler.filter(g => (g.tarih || '') >= AR_BAS);
+  if (!tur.length) return null;
+  return tur.slice().sort((a, b) => ((a.tarih || '') + (a.saat || '')).localeCompare((b.tarih || '') + (b.saat || '')))[tur.length - 1];
+}
+function arDurumGecer(k) {
+  const g = arSonGorusme(k);
+  if (UI.arDurum === 'bekleyen') return !g;
+  if (UI.arDurum === 'bugun') return !!g && g.tarih === todayISO();
+  if (UI.arDurum === 'tur') return !!g;
+  if (UI.arDurum === 'kuyruk') return DB.queue.some(q => q.durum === 'Bekliyor' && q.ogrenciId && q.ogrenciId === k.ogrenciId);
+  return true;
+}
+function arHavuz() { return ARAMA.kisiler.filter(k => k.liste === UI.arListe); }
+function arListe() {
+  const q = (UI.arQ || '').trim();
+  return arHavuz().filter(k => {
+    if (k.durum !== UI.arSekme) return false;
+    if (UI.arHak !== 'hepsi' && k.hak !== UI.arHak) return false;
+    if (UI.arKod !== 'hepsi' && k.kod !== UI.arKod) return false;
+    if (!arDurumGecer(k)) return false;
+    if (q && !(aramaKatla(k.ad).indexOf(aramaKatla(q)) >= 0 || (k.tel || '').indexOf(q.replace(/\D/g, '')) >= 0)) return false;
+    return true;
+  }).sort((a, b) => (Number(b.oncelik || 0) - Number(a.oncelik || 0)) || a.kod.localeCompare(b.kod, 'tr') || a.ad.localeCompare(b.ad, 'tr'));
+}
+function arKisi(id) { return ARAMA.kisiler.find(k => k.id === id) || null; }
+function arTel(t) {
+  const d = (t || '').replace(/\D/g, '');
+  return d.length === 10 ? '0' + d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6, 8) + ' ' + d.slice(8) : (t || '');
+}
+function arWa(t) { const d = (t || '').replace(/\D/g, ''); return d.length === 10 ? 'https://wa.me/90' + d : ''; }
+
+/* ---- satış metni ---- */
+function arTeklif(k) {
+  const sv = arSv(k);
+  const tarih = 'Ders <b>' + sv.bas + '</b> başlıyor; erken kayıt son tarihi <b>' + sv.son + '</b>' +
+    (sv.kitap ? ', ' + sv.kitap : '') + '. Son tarihten sonra liste fiyatı uygulanır.';
+  if (k.hak === 'var') {
+    return { t: 'Eski öğrencilerimize <b>bir kez</b> tanıdığımız %50 indirim hakkı duruyor: ' +
+        sv.f.map(x => x[0] + ' <b>' + x[1] + ' ₺</b>').join(' · ') + '. ' + tarih,
+      ek: 'Sitedeki erken kayıt fiyatı ' + sv.f[0][2] + ' ₺ / ' + sv.f[1][2] + ' ₺ — %50 bunun altında. Hak ömür boyu tek kullanım, bu alımda biter.' };
+  }
+  return { t: 'Erken kayıt fiyatı: ' + sv.f.map(x => x[0] + ' <b>' + x[2] + ' ₺</b>').join(' · ') +
+      ' (liste ' + sv.f[0][3] + ' ₺ / ' + sv.f[1][3] + ' ₺). ' + tarih,
+    ek: '%50 eski öğrenci hakkı daha önce kullanılmış — tek seferlik olduğu için tekrar verilemez (kamp / Word Up gibi bir kursta kullanılmış olması da hakkı bitirir). Kurum indirimi (TSK / MSB / lisans vb.) varsa büroyla görüş.' };
+}
+function arRepl(k) {
+  const v = arVeri(k), ad = (k.ad || '').split(' ')[0], out = [];
+  const paket = v.p || AR_LISTE_ADI[k.liste] || 'İleri Seviye';
+  if (k.durum === 'g') {
+    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. Daha önce görüşmüştük — <b>2027 İlkbahar</b> için tekrar arıyorum.' });
+    const gec = [];
+    if (v.cal) gec.push('çalışmaya devam ' + (v.cal === 'Evet' ? 'ediyordu' : 'etmiyordu'));
+    if (v.ap) gec.push('puanı ' + v.ap);
+    if (v.hp) gec.push('hedefi ' + v.hp);
+    if (v.ys) gec.push('yakın sınavı ' + v.ys);
+    if (v.yon === 'Evet') gec.push('hoca yönlendirmesi istemişti');
+    out.push({ t: 'Geçen görüşmeden bu yana ne değişti — çalışmaya başlayabildiniz mi, sınava girdiniz mi?',
+      ek: gec.length ? 'Geçen sefer: ' + gec.join(' · ') : 'Geçen sefer form doldurulmamış — bu kez doldur.' });
+  } else {
+    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. <b>' + esc(paket) + '</b> dersimizin öğrencisiydiniz, dönem sonu durum araması yapıyorum.' });
+    const ip = [];
+    if (v.ap) ip.push('panelde son puanı ' + v.ap);
+    if (v.hp) ip.push('hedefi ' + v.hp);
+    if (v.ys) ip.push('yakın sınavı ' + v.ys);
+    out.push({ t: 'Son YDS / YÖKDİL puanınız kaç oldu, hedefiniz kaç? Şu an düzenli çalışabiliyor musunuz?',
+      ek: ip.length ? 'Kayıtta: ' + ip.join(' · ') : 'Kayıtta puan bilgisi yok — cevabı forma işle.' });
+  }
+  if (k.kod[0] === '4' || k.kod[0] === '5') {
+    out.push({ t: 'Yeni dönem paketiniz aktif — <b>derse başlayabildiniz mi</b>, eksik ya da sorun var mı?', kilit: true });
+    out.push({ t: 'Memnuniyet + ek ürün: Soru Çözüm Kampı, Word Up, Okuma Stratejileri. Referans için arkadaşına indirim hatırlat.' });
+    return out;
+  }
+  if (v.et === 'don') {
+    out.push({ t: 'Dersinizi <b>' + esc(v.ed || '') + '</b> tarihinde dondurmuşsunuz' + (v.dk ? ', <b>' + v.dk + ' günlük</b> hakkınız duruyor' : '') + ' — isterseniz hemen açalım.', kilit: true });
+  } else if (v.et === 'acik') {
+    out.push({ t: 'Video erişiminiz <b>' + esc(v.ed || '') + '</b> tarihinde bitiyor' + (v.dk != null ? ' (' + v.dk + ' gün kaldı)' : '') + '. Süreniz dolmadan yeni dönemi kilitleyelim.', kilit: true });
+  } else {
+    out.push({ t: 'Video erişiminiz <b>' + esc(v.ed || 'bu dönem') + '</b> ' + (v.ed ? 'tarihinde kapandı' : 'kapandı') + '. Çalışmaya devam edecekseniz yeni dönem şart.', kilit: true });
+  }
+  out.push(arTeklif(k));
+  return out;
+}
+function arSablonlar(k) {
+  const v = arVeri(k), sv = arSv(k), ad = (k.ad || '').split(' ')[0];
+  const fiyat = k.hak === 'var'
+    ? sv.f[0][0] + ' ' + sv.f[0][1] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][1] + ' ₺ (eski öğrenci %50)'
+    : sv.f[0][0] + ' ' + sv.f[0][2] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][2] + ' ₺ (erken kayıt)';
+  const erisim = v.et === 'don' ? 'Dersiniz ' + (v.ed || '') + ' tarihinde donduruldu' + (v.dk ? ', ' + v.dk + ' günlük hakkınız duruyor' : '') + '.'
+    : v.et === 'acik' ? 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona eriyor.'
+      : 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona erdi.';
+  return [
+    { ad: 'Ulaşamadım', m: 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. Sizi aradım ama ulaşamadım. 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum; uygun olduğunuzda dönerseniz sevinirim.' },
+    { ad: 'Fiyat bilgisi', m: 'Merhaba ' + ad + ' Hocam, görüşmemizin ardından fiyatları iletiyorum: ' + fiyat + '. Ders ' + sv.bas + ' tarihinde başlıyor, erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '. Son tarihten sonra liste fiyatı uygulanıyor.' },
+    { ad: 'Ders süresi', m: 'Merhaba ' + ad + ' Hocam, ders erişiminizle ilgili bilgi: ' + erisim + ' Yeni dönem için ' + sv.bas + ' tarihinde başlayan programımıza kayıt olabilirsiniz.' },
+    { ad: 'Kamp', m: 'Merhaba ' + ad + ' Hocam, 22 Kasım YDS için 10 Günlük Soru Çözüm Kampımız 9 Kasım\'da başlıyor (hafta içi 19:30-23:00, 21 Kasım\'da ek ders). Canlı 7.000 ₺, kayıttan 6.000 ₺. Kamp 50 puan ve üstü seviye için uygundur.' }
+  ];
+}
+
+/* ---- görünüm ---- */
+function arSay(liste) {
+  const h = ARAMA.kisiler.filter(k => k.liste === liste);
+  return { top: h.length, kalan: h.filter(k => k.durum === 'y' && !arSonGorusme(k)).length };
+}
+function vArama() {
+  if (ARAMA.durum === 'bos' || ARAMA.durum === 'yukleniyor') {
+    return '<div class="page-head"><div><h1>Arama Konsolu</h1><div class="sub">Panelin dört arama listesi · kişiye özel konuşma metni, fiyat ve WhatsApp şablonları</div></div></div>' +
+      '<div class="card card-pad"><p class="dim">Liste yükleniyor…</p></div>';
+  }
+  if (ARAMA.durum === 'hata') {
+    return '<div class="page-head"><div><h1>Arama Konsolu</h1></div></div>' +
+      '<div class="card card-pad"><p class="dim">Liste alınamadı: ' + esc(ARAMA.hata) + '</p>' +
+      '<div class="form-actions"><button class="btn" data-action="ar-yenile">Yeniden dene</button></div></div>';
+  }
+  const havuz = arHavuz();
+  const taban = havuz.filter(k => k.durum === UI.arSekme && arDurumGecer(k));
+  const hakSuz = taban.filter(k => UI.arHak === 'hepsi' || k.hak === UI.arHak);
+  const kodSuz = taban.filter(k => UI.arKod === 'hepsi' || k.kod === UI.arKod);
+  const liste = arListe();
+  const sec = UI.arSec ? arKisi(UI.arSec) : null;
+
+  const cipler = AR_LISTELER.map(L => {
+    const s = arSay(L);
+    return '<button class="ar-cip' + (L === UI.arListe ? ' active' : '') + '" data-action="ar-liste" data-v="' + esc(L) + '">' +
+      '<b>' + esc(AR_LISTE_ADI[L]) + '</b><span>' + s.kalan + ' / ' + s.top + '</span></button>';
+  }).join('');
+
+  const sekmeler = [['y', 'Aranacaklar'], ['g', 'Görüşülenler']].map(x => {
+    const n = havuz.filter(k => k.durum === x[0]).length;
+    const kalan = havuz.filter(k => k.durum === x[0] && !arSonGorusme(k)).length;
+    return '<button class="ar-sekme' + (x[0] === UI.arSekme ? ' active' : '') + '" data-action="ar-sekme" data-v="' + x[0] + '">' +
+      x[1] + '<span class="dim small"> ' + kalan + ' / ' + n + '</span></button>';
+  }).join('');
+
+  const kodlar = Array.from(new Set(hakSuz.map(k => k.kod))).sort();
+  const sel = (act, deger, secenekler) => '<select data-action="' + act + '">' +
+    secenekler.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === deger ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>';
+
+  const satirlar = liste.slice(0, 400).map(k => {
+    const g = arSonGorusme(k);
+    return '<button class="ar-satir' + (sec && sec.id === k.id ? ' active' : '') + '" data-action="ar-sec" data-id="' + esc(k.id) + '">' +
+      '<span class="ar-kod g' + esc(k.kod[0]) + '">' + esc(k.kod) + '</span>' +
+      '<span class="ar-ad"><b>' + esc(k.ad) + '</b>' + (k.hak === 'var' ? '<span class="ar-50">%50</span>' : '') +
+      (Number(k.oncelik) ? '<span class="ar-yildiz">★</span>' : '') +
+      '<span class="dim small">' + esc(arTel(k.tel) || 'numara yok') + (g ? ' · ' + fmtDate(g.tarih) + ' arandı' : '') + '</span></span></button>';
+  }).join('') || '<p class="dim" style="padding:14px">Bu süzgeçte kimse kalmadı.</p>';
+
+  return '<div class="page-head"><div><h1>Arama Konsolu</h1><div class="sub">Panelin dört arama listesi · ' +
+    ARAMA.kisiler.length + ' kişi · kişiye özel konuşma metni, fiyat ve WhatsApp şablonları</div></div>' +
+    '<div class="page-actions"><button class="btn" data-action="ar-yenile">Listeyi yenile</button></div></div>' +
+    '<div class="konsol">' +
+    '<div class="card konsol-sol">' +
+    '<div class="ar-cipler">' + cipler + '</div>' +
+    '<div class="ar-sekmeler">' + sekmeler + '</div>' +
+    '<div class="ar-suzgec">' +
+    '<input class="ar-ara" placeholder="İsim ya da numara ara…" value="' + esc(UI.arQ || '') + '" data-action="ar-ara">' +
+    '<label>Kategori' + sel('ar-kod', UI.arKod, [['hepsi', 'Tümü (' + hakSuz.length + ')']].concat(
+      kodlar.map(kod => [kod, arKatAd(kod) + ' (' + hakSuz.filter(k => k.kod === kod).length + ')']))) + '</label>' +
+    '<label>%50 eski öğrenci indirimi' + sel('ar-hak', UI.arHak, [
+      ['hepsi', 'Farketmez (' + kodSuz.length + ')'],
+      ['var', 'Hakkı DURUYOR (' + kodSuz.filter(k => k.hak === 'var').length + ')'],
+      ['yok', 'Hakkı kullanılmış (' + kodSuz.filter(k => k.hak === 'yok').length + ')']]) + '</label>' +
+    '<label>İşlem durumu' + sel('ar-durum', UI.arDurum, [
+      ['bekleyen', 'Bu turda aranmamış'], ['bugun', 'Bugün görüşülenler'],
+      ['tur', 'Bu turda görüşülenler'], ['kuyruk', 'Aranacaklar kuyruğunda'], ['tumu', 'Hepsi']]) + '</label>' +
+    '<div class="ar-sonuc">Süzgeçten geçen: <b>' + liste.length + '</b> kişi' +
+    '<button class="btn small" data-action="ar-temizle">Süzgeçleri temizle</button></div>' +
+    '</div><div class="ar-liste">' + satirlar +
+    (liste.length > 400 ? '<p class="dim small" style="padding:10px">İlk 400 kişi gösteriliyor — süzgeçle daralt.</p>' : '') +
+    '</div></div>' +
+    '<div class="konsol-sag">' + (sec ? arDetay(sec) : arBos()) + '</div></div>';
+}
+function arBos() {
+  return '<div class="card card-pad"><h2 class="card-title">Kimi arayacağız?</h2>' +
+    '<p class="dim">Soldaki kuyruktan bir isim seç. Sekmeler iki havuzu ayırır: <b>Aranacaklar</b> (hiç aranmamış + yanıt vermeyen) ve <b>Görüşülenler</b> (panelde daha önce konuşulmuş). Görüşmeyi kaydettiğinde kişi kuyruktan düşer, kayıt öğrenci kartına ve gün sonu raporuna işlenir.</p></div>' +
+    arFiyatKutusu();
+}
+function arDersKutusu(k) {
+  const d = arVeri(k).ders || {};
+  const acik = d.acik || [], don = d.don || [];
+  let ic = '';
+  if (!acik.length && !don.length) {
+    ic = '<p class="dim">' + (d.kapanis ? 'Açık dersi kalmadı. Son erişim ' + esc(d.kapanis) + ' tarihinde kapandı' +
+      (d.kapali_sayi ? ' (' + d.kapali_sayi + ' ders)' : '') + '.' : 'Panelde süresi devam eden ders kaydı yok.') + '</p>';
+  } else {
+    ic = '<table class="data"><tbody>' +
+      acik.map(g => '<tr><td class="nowrap">' + esc(g.t) + '</td><td class="nowrap"><span class="chip' + (g.k <= 45 ? ' warn' : ' ok') + '">' + g.k + ' gün kaldı</span></td>' +
+        '<td class="nowrap">' + g.n + ' ders</td><td class="small dim">' + esc((g.a || []).join(' · ')) + '</td></tr>').join('') +
+      don.map(x => '<tr><td class="nowrap">' + esc(x.t || '—') + '</td><td class="nowrap"><span class="chip lilac">' + (x.k ? x.k + ' gün hakkı duruyor' : 'dondurulmuş') + '</span></td>' +
+        '<td class="nowrap">donduruldu</td><td class="small dim">' + esc(x.a || '') + '</td></tr>').join('') +
+      '</tbody></table>' +
+      (d.kapanis ? '<p class="small dim">Ayrıca süresi dolmuş ' + (d.kapali_sayi || 0) + ' ders var; sonuncusu ' + esc(d.kapanis) + ' tarihinde kapandı.</p>' : '');
+  }
+  return '<div class="card card-pad section"><h2 class="card-title">Derslerinin süresi — öğrenci sorarsa</h2>' + ic + '</div>';
+}
+function arFiyatKutusu() {
+  const para = x => x == null ? '—' : x.toLocaleString('tr-TR') + ' ₺';
+  const blok = b => '<tr class="grup"><td colspan="4"><b>' + esc(b.g) + '</b></td></tr>' +
+    b.s.map(s => '<tr><td>' + esc(s[0]) + '</td><td class="num">' + para(s[1]) + '</td><td class="num dim">' + para(s[2]) + '</td>' +
+      '<td class="num">' + (b.kampanya ? '<span class="dim">birleşmez</span>' : '<b>' + para(Math.round(s[1] / 2)) + '</b>') + '</td></tr>').join('');
+  return '<details class="card card-pad section" open><summary class="card-title">Tüm ders fiyatları <span class="dim small">ankaradil.com · 14.09.2026</span></summary>' +
+    '<div class="twrap"><table class="data"><thead><tr><th>Ders</th><th class="num">Sitedeki fiyat</th><th class="num">Liste</th><th class="num">%50 eski öğrenci</th></tr></thead>' +
+    '<tbody>' + AR_FIYAT.map(blok).join('') + '</tbody></table></div>' +
+    '<p class="small dim">%50 eski öğrenci indirimi ömür boyu <b>tek kullanımlık</b> — ana paket, Word Up, kamp, okuma dersi fark etmez. Kullanacak kişi en az aynı seviye paketi almalı.</p></details>';
+}
+function arDetay(k) {
+  const v = arVeri(k), sv = arSv(k), C = DB.catalogs;
+  const st = k.ogrenciId ? stById(k.ogrenciId) : null;
+  const g = arSonGorusme(k);
+  const rozet = (s, c) => '<span class="chip' + (c ? ' ' + c : '') + '">' + esc(s) + '</span>';
+  const alan = (b, x, k2) => x ? '<div class="alan"><dt>' + esc(b) + '</dt><dd' + (k2 ? ' class="small"' : '') + '>' + esc(x) + '</dd></div>' : '';
+
+  let etiket = rozet(AR_LISTE_ADI[k.liste] || k.liste, 'src') + rozet(k.kod + ' · ' + (AR_ALT[k.kod[2]] || '')) +
+    rozet(AR_GRUP[k.kod[0]] || '') + rozet(k.seviye + ' seviye');
+  if (v.et === 'don') etiket += rozet('Dersi dondurulmuş', 'lilac');
+  if (v.et === 'acik') etiket += rozet('Erişimi açık', 'warn');
+  etiket += k.hak === 'var' ? rozet('%50 hakkı duruyor', 'ok') : rozet('%50 hakkı kullanılmış', 'danger');
+
+  const wa = arWa(k.tel);
+  const telKutu = k.tel
+    ? '<a class="btn primary" href="tel:+90' + esc((k.tel || '').replace(/\D/g, '')) + '">Ara</a>' +
+      (wa ? '<a class="btn" href="' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
+      '<button class="btn" data-action="ar-kopya" data-v="' + esc((k.tel || '').replace(/\D/g, '')) + '">' + esc(arTel(k.tel)) + '</button>'
+    : '<span class="chip warn">Panelde numara yok — e-posta ile ulaş</span>';
+
+  const kunye = '<dl class="kunye">' +
+    alan('Son aldığı paket', (v.p || '—') + (v.pd ? ' · ' + v.pd : '')) +
+    alan('Ders erişimi', v.et === 'don' ? 'Dondurulmuş · ' + (v.ed || '') + (v.dk ? ' · ' + v.dk + ' gün hakkı var' : '')
+      : v.et === 'acik' ? 'Açık · ' + (v.ed || '') + ' tarihinde bitiyor' : 'Kapandı' + (v.ed ? ' · ' + v.ed : '')) +
+    alan('Eski öğrenci %50 hakkı', k.hak === 'var' ? 'DURUYOR — hiç kullanmamış'
+      : 'KULLANILMIŞ — tek seferlik; hangi kursta kullanıldığının önemi yok, tekrar verilemez.') +
+    alan('Kuyruktaki sırası', arKatAd(k.kod), true) +
+    alan('Puan / hedef', [v.ap ? 'aldığı ' + v.ap : '', v.hp ? 'hedef ' + v.hp : '', v.ys || ''].filter(Boolean).join(' · ')) +
+    alan('Panelde arama geçmişi', (v.d || 0) + ' deneme' + (v.ar ? ' · ' + v.ar : '')) +
+    (k.durum === 'g' ? alan('Panel formunda', [v.cal ? 'çalışıyor: ' + v.cal : '', v.kt ? 'kursu bitirdi: ' + v.kt : '', v.yon ? 'yönlendirme: ' + v.yon : ''].filter(Boolean).join(' · ') || 'form boş bırakılmış') : '') +
+    alan('E-posta', v.m, true) + alan('Kullandığı indirimler', v.di, true) +
+    alan('2026\'da aldığı ek ürün', v.ek, true) + alan('Panel notu', v.n, true) +
+    (st ? alan('Sitedeki kart', st.ad + ' · ' + (st.gorusmeler || []).length + ' görüşme', true) : '') +
+    '</dl>';
+
+  const repl = '<div class="card card-pad section ar-metin"><h2 class="card-title">Ne söylenecek</h2>' +
+    arRepl(k).map(x => '<p' + (x.kilit ? ' class="kilit"' : '') + '>' + x.t + (x.ek ? '<small>' + esc(x.ek) + '</small>' : '') + '</p>').join('') + '</div>';
+
+  const sablon = '<div class="card card-pad section"><h2 class="card-title">WhatsApp şablonları</h2><div class="ar-wa">' +
+    arSablonlar(k).map(s => '<div class="ar-wa-kart"><div class="bas"><b>' + esc(s.ad) + '</b>' +
+      '<span><button class="btn small" data-action="ar-kopya" data-v="' + esc(s.m) + '">Kopyala</button>' +
+      (wa ? '<a class="btn small" href="' + esc(wa + '?text=' + encodeURIComponent(s.m)) + '" target="_blank" rel="noopener">WhatsApp\'ta aç</a>' : '') +
+      '</span></div><p>' + esc(s.m) + '</p></div>').join('') + '</div></div>';
+
+  const fp = '<div class="card card-pad section"><h2 class="card-title">2027 İlkbahar fiyatları · ' + esc(k.seviye) + '</h2>' +
+    '<table class="data"><thead><tr><th>Paket</th><th class="num">Erken kayıt</th><th class="num">%50</th></tr></thead><tbody>' +
+    sv.f.map(f => '<tr><td>' + esc(f[0]) + '</td><td class="num' + (k.hak === 'var' ? ' dim' : '') + '">' + f[2] + ' ₺</td>' +
+      '<td class="num' + (k.hak === 'var' ? '' : ' dim') + '"><b>' + f[1] + ' ₺</b></td></tr>').join('') + '</tbody></table>' +
+    '<p class="small dim">Ders başlangıcı ' + sv.bas + ' · erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' · ' + sv.kitap : '') + '. ' +
+    (k.hak === 'var' ? 'Bu öğrenci %50\'yi kullanabilir.' : '%50 hakkı bitmiş — erken kayıt fiyatı geçerli.') + '</p></div>';
+
+  const ivTarih = todayISO();
+  const pre = kk => esc(kk || '');
+  const form = '<div class="card card-pad section"><h2 class="card-title">Görüşmeyi kaydet</h2>' +
+    '<p class="small dim">Panelden gelen bilgiler hazır dolduruldu. Kaydettiğinde öğrenci kartına, gün sonu raporuna ve aylık rapora işlenir.</p>' +
+    '<form data-action="gorusme-kaydet" data-id="' + esc(k.ogrenciId || '') + '" data-konsol="' + esc(k.id) + '">' +
+    (k.ogrenciId ? '' : '<input type="hidden" name="ogrenciAd" value="' + esc(k.ad) + '"><input type="hidden" name="tel" value="' + esc(k.tel || '') + '">') +
+    '<div class="fgrid">' +
+    '<div class="field"><label>Öğrenci Grubu</label><select name="grup">' + selectOpts(C.gruplar, (st && st.grup) || (k.seviye === 'İleri' ? 'İleri Seviye' : k.seviye === 'Temel' ? 'Temel Seviye' : 'Pro Grup')) + '</select></div>' +
+    '<div class="field"><label>Tarih</label><input type="date" name="tarih" required value="' + ivTarih + '"></div>' +
+    '<div class="field"><label>Saat</label><input type="time" name="saat" value="' + nowHM() + '"></div>' +
+    '<div class="field"><label>Arama Denemesi</label><input type="number" name="deneme" min="1" value="' + ((Number(v.d) || 0) + 1) + '"></div>' +
+    '<div class="field"><label>Son Girdiği Sınav</label><select name="sinav">' + selectOpts(C.sinavlar, v.sinav || '', true) + '</select></div>' +
+    '<div class="field"><label>Alınan Puan</label><input name="alinan" value="' + pre(v.ap) + '"></div>' +
+    '<div class="field"><label>Hedef Puan</label><input name="hedef" value="' + pre(v.hp) + '"></div>' +
+    '<div class="field"><label>Yakın Sınav</label><select name="yakinSinav">' + selectOpts(C.sinavlar, v.yakin || '', true) + '</select></div>' +
+    '<div class="field"><label>Puanı Yeterli mi?</label><select name="puanYeterli">' + ehOpts('') + '</select></div>' +
+    '<div class="field"><label>Çalışmaya Devam Ediyor mu?</label><select name="devamEdiyor">' + ehOpts(v.cal || '') + '</select></div>' +
+    '<div class="field"><label>Kursu Tamamladı mı?</label><select name="kursuTamamladi">' + ehOpts(v.kt || '') + '</select></div>' +
+    '<div class="field"><label>Yönlendirme İstiyor mu?</label><select name="yonlendirme">' + ehOpts(v.yon || '') + '</select></div>' +
+    '<div class="field"><label>Başka Program Düşünüyor mu?</label><select name="baskaProgram">' + ehOpts('') + '</select></div>' +
+    '<div class="field"><label>Erişim Sorunu Var mı?</label><select name="erisimSorunu">' + ehOpts('') + '</select></div>' +
+    '<div class="field"><label>Şu An Yararlandığı Ana Program</label><select name="anaProgram">' + selectOpts(C.anaProgramlar, '', true) + '</select></div>' +
+    '<div class="field"><label>Yararlandığı Ek Ders</label><input name="ekDers" value="' + pre(v.ek) + '"></div>' +
+    '<div class="field"><label>Düşündüğü Program</label><select name="dusunulenProgram">' + selectOpts(C.anaProgramlar, '', true) + '</select></div>' +
+    '<div class="field wide"><label>Görüşme Notu</label><textarea name="gorusmeNotu" rows="2"></textarea></div>' +
+    '<div class="field wide"><label>Önerilen Program</label><textarea name="onerilen" rows="1">' + esc(k.hak === 'var' ? sv.f[0][0] + ' (%50 · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (erken kayıt · ' + sv.f[0][2] + ' ₺)') + '</textarea></div>' +
+    '<div class="field wide"><label>Yapılan İşlem / Sonuç</label><textarea name="islem" rows="1"></textarea></div>' +
+    '</div><div class="form-actions"><button class="btn primary" type="submit">Görüşmeyi Kaydet</button>' +
+    '<button class="btn" type="button" data-action="ar-kuyruk" data-id="' + esc(k.id) + '">Tekrar aranacak → kuyruğa ekle</button>' +
+    '<button class="btn" type="button" data-action="ar-sonraki">Sonraki kişi ›</button></div></form></div>';
+
+  return '<div class="card card-pad ar-kisi"><div class="ar-kisi-ust"><div><h2>' + esc(k.ad) + '</h2>' +
+    '<div class="chips">' + etiket + '</div></div>' +
+    (st ? '<a class="btn small" data-goto="ogrenci:' + esc(st.id) + '">Kartı aç</a>' : '') + '</div>' +
+    '<div class="ar-tel">' + telKutu + '</div>' + kunye +
+    (g ? '<p class="small ok-yazi">Bu turda görüşüldü: ' + fmtDate(g.tarih) + ' ' + esc(g.saat || '') + ' · ' + esc(g.islem || g.gorusmeNotu || '') + '</p>' : '') +
+    '</div>' + arDersKutusu(k) + repl + fp + form + sablon + arFiyatKutusu();
+}
+function arKaydettikten(id) {
+  /* görüşme kaydedildi: kişi 'bu turda aranmamış' süzgecinden düşer, sıradakine geçilir */
+  const k = arKisi(id);
+  const l = arListe().filter(x => x.id !== id);
+  UI.arSec = l.length ? l[0].id : null;
+  go('arama');
+  if (k) toast(k.ad + ' kaydedildi ✓ · kalan ' + l.length + ' kişi');
+}
+function arSonraki() {
+  const l = arListe();
+  if (!l.length) { UI.arSec = null; render(); return; }
+  const i = l.findIndex(x => x.id === UI.arSec);
+  UI.arSec = l[(i + 1) % l.length].id;
+  render();
+  const v = document.getElementById('view'); if (v) v.scrollIntoView({ block: 'start' });
+}
+
 /* ---------- Gün Sonu Raporu ---------- */
 function vReport(dateArg) {
   const dates = datesWithData();
@@ -2868,6 +3299,17 @@ document.addEventListener('click', e => {
   else if (act === 'temassiz-tum') { UI.temassizTum = !UI.temassizTum; render(); }
   else if (act === 'calisma-tum') { UI.calismaTum = !UI.calismaTum; render(); }        /* v34 */
   else if (act === 'sicak-tum') { UI.sicakTum = !UI.sicakTum; render(); }              /* v34 */
+  else if (act === 'ar-liste') { UI.arListe = el.dataset.v; UI.arSec = null; UI.arKod = 'hepsi'; render(); }
+  else if (act === 'ar-sekme') { UI.arSekme = el.dataset.v; UI.arSec = null; UI.arKod = 'hepsi'; render(); }
+  else if (act === 'ar-sec') { UI.arSec = el.dataset.id; render(); }
+  else if (act === 'ar-temizle') { UI.arKod = 'hepsi'; UI.arHak = 'hepsi'; UI.arDurum = 'bekleyen'; UI.arQ = ''; render(); }
+  else if (act === 'ar-yenile') { arYukle(true); render(); }
+  else if (act === 'ar-kopya') { copyText(el.dataset.v); }
+  else if (act === 'ar-sonraki') { arSonraki(); }
+  else if (act === 'ar-kuyruk') {
+    const k = arKisi(el.dataset.id);
+    if (k) persist('addQueue', { ogrenciId: k.ogrenciId || '', ad: k.ad, tel: k.tel, eklenme: '' }, k.ad + ' Aranacaklar kuyruğuna eklendi');
+  }
   else if (act === 'kuyruk-git') { UI.kuyrukF = el.dataset.f || ''; go('kuyruk'); }    /* v34: filtreli kısayol */
   else if (act === 'kuyruk-sihir-ac') { UI.kuyrukSihir = true; render(); }             /* v34 */
   else if (act === 'kuyruk-sihir-kapat') { UI.kuyrukSihir = false; render(); }         /* v34 */
@@ -2914,7 +3356,10 @@ document.addEventListener('change', e => {
   const el = e.target.closest('[data-action]');
   if (!el || !DB) return;
   const act = el.dataset.action;
-  if (act === 'grup-sec') { UI.grup = el.value; render(); }
+  if (act === 'ar-kod') { UI.arKod = el.value; render(); }
+  else if (act === 'ar-hak') { UI.arHak = el.value; render(); }
+  else if (act === 'ar-durum') { UI.arDurum = el.value; render(); }
+  else if (act === 'grup-sec') { UI.grup = el.value; render(); }
   else if (act === 'ay-sec') { UI.ay = el.value; render(); }
   else if (act === 'kuyruk-plan-tarih') {
     const q = DB.queue.find(x => x.id === el.dataset.id);
@@ -2943,6 +3388,16 @@ let araTimer = null;
 document.addEventListener('input', e => {
   const el = e.target;
   if (!DB) return;
+  if (el.dataset.action === 'ar-ara') {
+    UI.arQ = el.value;
+    clearTimeout(araTimer);
+    araTimer = setTimeout(() => {
+      render();
+      const s = document.querySelector('input[data-action=ar-ara]');
+      if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+    }, 200);
+    return;
+  }
   if (el.dataset.action === 'ara' || el.dataset.action === 'gara' || el.dataset.action === 'sara') {
     const alan = el.dataset.action;
     if (alan === 'ara') UI.q = el.value;
@@ -3017,11 +3472,16 @@ document.addEventListener('submit', e => {
       yonlendirme: d.yonlendirme, anaProgram: d.anaProgram, ekDers: d.ekDers,
       baskaProgram: d.baskaProgram, dusunulenProgram: d.dusunulenProgram, erisimSorunu: d.erisimSorunu,
       gorusmeNotu: d.gorusmeNotu, onerilen: d.onerilen, islem: d.islem,
-      kaynak: 'yeni' /* gorusen alanini sunucu, giris yapan kisiyle damgalar */
+      kaynak: form.dataset.konsol ? 'arama-konsolu' : 'yeni' /* gorusen alanini sunucu, giris yapan kisiyle damgalar */
     };
     persist('addInterview', { studentId: studentId, yeni: yeni, iv: iv },
       'Görüşme kaydedildi: ' + (st ? st.ad : (yeni ? yeni.ad : '')))
-      .then(ok => { if (ok) { lsDel('kh-draft'); UI.raporDate = iv.tarih; agsAfterInterview(studentId, yeni); go('rapor', iv.tarih); } });
+      .then(ok => {
+        if (!ok) return;
+        lsDel('kh-draft'); UI.raporDate = iv.tarih; agsAfterInterview(studentId, yeni);
+        if (form.dataset.konsol) { arKaydettikten(form.dataset.konsol); return; }
+        go('rapor', iv.tarih);
+      });
   } else if (act === 'ogrenci-kaydet') {
     persist('updateStudent', {
       id: form.dataset.id, ad: d.ad, tel: normTel(d.tel), grup: d.grup, hedef: d.hedef,
