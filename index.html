@@ -679,6 +679,14 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
   .kunye { grid-template-columns: 1fr; }
 }
 
+/* v38: konsolda hızlı sonuç + gün şeridi */
+.tiles.ar-gun { margin-bottom: 6px; }
+.ar-gun-alt { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; flex-wrap: wrap; }
+.ar-hizli-not { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; margin-bottom: 10px; }
+.ar-sonuclar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.ar-sonuclar .btn { justify-content: center; }
+.ar-hizli { border-left: 3px solid var(--brand); }
+
 
 /* ---------- AGS & YDS Adayları ---------- */
 .ags-card { border-left-color: var(--warn); }
@@ -2795,6 +2803,15 @@ const AR_LISTE_ADI = { 'İleri': 'İleri Seviye', 'Pro Grup': 'Pro Grup', 'Temel
 const AR_ALT = { '1': 'çalışıyor', '2': 'hiç aranmamış', '3': 'yanıt yok', '4': 'belirsiz', '5': 'çalışmıyor', '6': 'ulaşılamıyor' };
 const AR_GRUP = { '1': 'Kaydı yok', '2': 'Dondurmuş', '3': 'Dersi açık', '4': '2026 Sonbahar', '5': '2027 İlkbahar' };
 const AR_GRUP_KISA = { '1': '', '2': 'Dondurmuş', '3': 'Dersi açık', '4': 'Paketi var', '5': 'Paketi var' };
+/* v38: tek dokunuşla gün sonu raporuna düşen sonuçlar */
+const AR_SONUC = [
+  { k: 'satis', ad: 'Satış yapıldı', islem: 'Satış yapıldı', sinif: 'ok' },
+  { k: 'ilgileniyor', ad: 'İlgileniyor · dönecek', islem: 'İlgileniyor, dönüş yapacak' },
+  { k: 'tekrar', ad: 'Tekrar aranacak', islem: 'Tekrar aranacak' },
+  { k: 'mesaj', ad: 'Mesaj bırakıldı', islem: 'Mesaj bırakıldı' },
+  { k: 'ulasilamadi', ad: 'Ulaşılamadı', islem: 'Ulaşılamadı' },
+  { k: 'ilgilenmiyor', ad: 'İlgilenmiyor', islem: 'İlgilenmiyor' }
+];
 const AR_BAS = '2026-09-30'; /* bu turun başlangıcı — önceki görüşmeler "tur dışı" sayılır */
 const ARAMA = { durum: 'bos', kisiler: [], hata: '' };
 
@@ -2986,6 +3003,7 @@ function vArama() {
   return '<div class="page-head"><div><h1>Arama Konsolu</h1><div class="sub">Panelin dört arama listesi · ' +
     ARAMA.kisiler.length + ' kişi · kişiye özel konuşma metni, fiyat ve WhatsApp şablonları</div></div>' +
     '<div class="page-actions"><button class="btn" data-action="ar-yenile">Listeyi yenile</button></div></div>' +
+    arGunSeridi() +
     '<div class="konsol' + (sec ? ' secili' : '') + '">' +
     '<div class="card konsol-sol">' +
     '<div class="ar-cipler">' + cipler + '</div>' +
@@ -3008,6 +3026,24 @@ function vArama() {
     '</div></div>' +
     '<div class="konsol-sag">' + (sec ? arDetay(sec) : arBos()) + '</div></div>';
 }
+/* v38: konsolun üstünde günün canlı sayacı — gün sonu raporuyla aynı kaynaktan */
+function arGunSeridi() {
+  const bugun = todayISO();
+  const gun = allInterviews().filter(x => x.iv.tarih === bugun);
+  const konsol = gun.filter(x => x.iv.kaynak === 'arama-konsolu');
+  const say = re => gun.filter(x => re.test(x.iv.islem || '')).length;
+  const kutu = (n, l, s) => '<div class="tile ' + (s || '') + '"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
+  return '<div class="tiles ar-gun">' +
+    kutu(gun.length, 'Bugünkü görüşme', 't-green') +
+    kutu(konsol.length, 'Konsoldan', '') +
+    kutu(say(/Satış/i), 'Satış', 't-green') +
+    kutu(say(/İlgileniyor/i), 'İlgileniyor', 't-amber') +
+    kutu(say(/Ulaşılamadı|Mesaj/i), 'Ulaşılamadı / mesaj', 't-sky') +
+    kutu(gun.filter(x => x.iv.yonlendirme === 'Evet').length, 'Yönlendirme isteyen', 't-lilac') +
+    '</div><div class="ar-gun-alt"><span class="dim small">Her kayıt anında gün sonu raporuna düşer.</span>' +
+    '<button class="btn small" data-goto="rapor:' + bugun + '">Gün Sonu Raporu →</button></div>';
+}
+
 function arBos() {
   return '<div class="card card-pad"><h2 class="card-title">Kimi arayacağız?</h2>' +
     '<p class="dim">Soldaki kuyruktan bir isim seç. Sekmeler iki havuzu ayırır: <b>Aranacaklar</b> (hiç aranmamış + yanıt vermeyen) ve <b>Görüşülenler</b> (panelde daha önce konuşulmuş). Görüşmeyi kaydettiğinde kişi kuyruktan düşer, kayıt öğrenci kartına ve gün sonu raporuna işlenir.</p></div>' +
@@ -3094,6 +3130,13 @@ function arDetay(k) {
 
   const ivTarih = todayISO();
   const pre = kk => esc(kk || '');
+  const hizli = '<div class="card card-pad section ar-hizli"><h2 class="card-title">Görüşme sonucu — tek dokunuş</h2>' +
+    '<p class="small dim">Sonuca bas: görüşme bugünün raporuna yazılır, kişi kuyruktan düşer, sıradaki açılır. Ayrıntı gerekiyorsa aşağıdaki formu doldur.</p>' +
+    '<input class="ar-hizli-not" id="ar-hizli-not" placeholder="Kısa not (isteğe bağlı)">' +
+    '<div class="ar-sonuclar">' + AR_SONUC.map(s => '<button class="btn' + (s.sinif ? ' ' + s.sinif : '') +
+      '" data-action="ar-sonuc" data-k="' + s.k + '" data-id="' + esc(k.id) + '">' + esc(s.ad) + '</button>').join('') +
+    '</div></div>';
+
   const form = '<div class="card card-pad section"><h2 class="card-title">Görüşmeyi kaydet</h2>' +
     '<p class="small dim">Panelden gelen bilgiler hazır dolduruldu. Kaydettiğinde öğrenci kartına, gün sonu raporuna ve aylık rapora işlenir.</p>' +
     '<form data-action="gorusme-kaydet" data-id="' + esc(k.ogrenciId || '') + '" data-konsol="' + esc(k.id) + '">' +
@@ -3130,7 +3173,7 @@ function arDetay(k) {
     (st ? '<a class="btn small" data-goto="ogrenci:' + esc(st.id) + '">Kartı aç</a>' : '') + '</div>' +
     '<div class="ar-tel">' + telKutu + '</div>' + kunye +
     (g ? '<p class="small ok-yazi">Bu turda görüşüldü: ' + fmtDate(g.tarih) + ' ' + esc(g.saat || '') + ' · ' + esc(g.islem || g.gorusmeNotu || '') + '</p>' : '') +
-    '</div>' + arDersKutusu(k) + repl + fp + form + sablon + arFiyatKutusu();
+    '</div>' + hizli + arDersKutusu(k) + repl + fp + form + sablon + arFiyatKutusu();
 }
 function arKaydettikten(id) {
   /* görüşme kaydedildi: kişi 'bu turda aranmamış' süzgecinden düşer, sıradakine geçilir */
@@ -3173,7 +3216,7 @@ function vReport(dateArg) {
       '<td><a data-goto="ogrenci:' + esc(x.st.id) + '"><b>' + esc(x.st.ad) + '</b></a></td>' +
       '<td>' + grpChip(iv.grup || x.st.grup) + '</td>' +
       '<td class="nowrap small">' + esc([iv.sinav, iv.alinan].filter(Boolean).join(' · ')) + (iv.hedef ? ' <span class="dim">/ ' + esc(iv.hedef) + '</span>' : '') + '</td>' +
-      '<td>' + (iv.yonlendirme === 'Evet' ? '<span class="chip warn">Yönlendirme</span>' : '') + (iv.erisimSorunu === 'Evet' ? ' <span class="chip bad">Erişim</span>' : '') + '</td>' +
+      '<td>' + (iv.yonlendirme === 'Evet' ? '<span class="chip warn">Yönlendirme</span>' : '') + (iv.erisimSorunu === 'Evet' ? ' <span class="chip bad">Erişim</span>' : '') + (iv.kaynak === 'arama-konsolu' ? ' <span class="chip src">konsol</span>' : '') + '</td>' +
       '<td class="small" style="max-width:340px">' + esc(iv.gorusmeNotu || iv.islem || '') + '</td></tr>';
   }).join('');
 
@@ -3415,6 +3458,32 @@ document.addEventListener('click', e => {
   else if (act === 'ar-sekme') { UI.arSekme = el.dataset.v; UI.arSec = null; UI.arKod = 'hepsi'; render(); }
   else if (act === 'ar-sec') { UI.arSec = el.dataset.id; render(); const v = document.getElementById('view'); if (window.innerWidth <= 1020 && v) v.scrollIntoView({ block: 'start' }); }
   else if (act === 'ar-kapat') { UI.arSec = null; render(); }
+  else if (act === 'ar-sonuc') {
+    const k = arKisi(el.dataset.id), tip = AR_SONUC.find(s => s.k === el.dataset.k);
+    if (!k || !tip) return;
+    const v = arVeri(k), sv = arSv(k), st = k.ogrenciId ? stById(k.ogrenciId) : null;
+    const notEl = document.getElementById('ar-hizli-not');
+    const grup = (st && st.grup) || (k.seviye === 'İleri' ? 'İleri Seviye' : k.seviye === 'Temel' ? 'Temel Seviye' : 'Pro Grup');
+    const iv = {
+      grup: grup, tarih: todayISO(), saat: nowHM(), deneme: String((Number(v.d) || 0) + 1),
+      sinav: v.sinav || '', alinan: v.ap || '', hedef: v.hp || '', yakinSinav: v.yakin || '',
+      puanYeterli: '', devamEdiyor: v.cal || '', kursuTamamladi: v.kt || '', yonlendirme: v.yon || '',
+      anaProgram: '', ekDers: v.ek || '', baskaProgram: '', dusunulenProgram: '', erisimSorunu: '',
+      gorusmeNotu: notEl ? notEl.value.trim() : '',
+      onerilen: k.hak === 'var' ? sv.f[0][0] + ' (%50 · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (erken kayıt · ' + sv.f[0][2] + ' ₺)',
+      islem: tip.islem, kaynak: 'arama-konsolu'
+    };
+    persist('addInterview', { studentId: k.ogrenciId || '', yeni: k.ogrenciId ? null : { ad: k.ad, tel: k.tel, grup: grup }, iv: iv },
+      k.ad + ' · ' + tip.ad)
+      .then(ok => {
+        if (!ok) return;
+        UI.raporDate = iv.tarih;
+        if (tip.k === 'tekrar') {
+          persist('addQueue', { ogrenciId: k.ogrenciId || '', ad: k.ad, tel: k.tel, eklenme: '' }, k.ad + ' kuyruğa eklendi')
+            .then(() => arKaydettikten(k.id));
+        } else arKaydettikten(k.id);
+      });
+  }
   else if (act === 'ar-temizle') { UI.arKod = 'hepsi'; UI.arHak = 'hepsi'; UI.arDurum = 'bekleyen'; UI.arQ = ''; render(); }
   else if (act === 'ar-yenile') { arYukle(true); render(); }
   else if (act === 'ar-kopya') { copyText(el.dataset.v); }
