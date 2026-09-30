@@ -687,6 +687,10 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 .ar-sonuclar .btn { justify-content: center; }
 .ar-hizli { border-left: 3px solid var(--brand); }
 
+.ar-gunsonu { margin-top: 18px; }
+.ar-gunsonu .alt-baslik { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+.ar-gunsonu table.data { margin-bottom: 4px; }
+
 
 /* ---------- AGS & YDS Adayları ---------- */
 .ags-card { border-left-color: var(--warn); }
@@ -3024,8 +3028,39 @@ function vArama() {
     '</div><div class="ar-liste">' + satirlar +
     (liste.length > 400 ? '<p class="dim small" style="padding:10px">İlk 400 kişi gösteriliyor — süzgeçle daralt.</p>' : '') +
     '</div></div>' +
-    '<div class="konsol-sag">' + (sec ? arDetay(sec) : arBos()) + '</div></div>';
+    '<div class="konsol-sag">' + (sec ? arDetay(sec) : arBos()) + '</div></div>' +
+    arGunSonuKutu();
 }
+/* v38: konsolun altında gün sonu girişi — ek görev + gün değerlendirmesi, rapordakiyle aynı kayıt */
+function arGunSonuKutu() {
+  const bugun = todayISO(), C = DB.catalogs;
+  const gorevler = DB.tasks.filter(x => x.tarih === bugun);
+  const not = DB.dailyNotes[bugun] || '';
+  const liste = gorevler.length
+    ? '<table class="data"><tbody>' + gorevler.map(g => '<tr><td><b>' + esc(g.gorev) + '</b>' +
+        (g.aciklama ? '<div class="dim small">' + esc(g.aciklama) + '</div>' : '') + '</td>' +
+        '<td class="nowrap small">' + esc(g.bolum || '') + '</td><td class="nowrap small">' + esc(g.kapsam || '') + '</td>' +
+        '<td class="nowrap">' + durumChip(g.durum) + '</td></tr>').join('') + '</tbody></table>'
+    : '<p class="dim small">Bugün için ek görev yok.</p>';
+
+  return '<div class="card card-pad section ar-gunsonu"><h2 class="card-title">Gün sonu — ek görev ve değerlendirme</h2>' +
+    '<p class="small dim">Buraya girilen her şey ' + fmtDate(bugun) + ' gün sonu raporuna düşer.</p>' +
+    '<h3 class="alt-baslik">Bugünün ek görevleri <span class="dim">(' + gorevler.length + ')</span></h3>' + liste +
+    '<form data-action="gorev-kaydet" data-tarih="' + bugun + '" class="ar-gorev-form"><div class="fgrid">' +
+    '<div class="field wide"><label>Çalışma / Görev</label><input name="gorev" required placeholder="Ör. 41 kişilik İleri listesi panelden teyit edildi"></div>' +
+    '<div class="field"><label>İlgili Bölüm</label><input name="bolum" value="Arama"></div>' +
+    '<div class="field"><label>Kapsam / Adet</label><input name="kapsam"></div>' +
+    '<div class="field"><label>Durum</label><select name="durum">' + selectOpts(C.gorevDurumlari, 'Tamamlandı', true) + '</select></div>' +
+    '<div class="field wide"><label>Açıklama</label><textarea name="aciklama" rows="2"></textarea></div>' +
+    '<div class="field wide"><label>Sonraki Adım</label><input name="sonraki"></div>' +
+    '</div><div class="form-actions"><button class="btn primary" type="submit">Ek Görevi Ekle</button></div></form>' +
+    '<h3 class="alt-baslik">Gün değerlendirmesi</h3>' +
+    '<form data-action="not-kaydet" data-tarih="' + bugun + '"><div class="fgrid">' +
+    '<div class="field wide"><textarea name="not" rows="4" placeholder="Bugün ne oldu, yarın ne yapılacak?">' + esc(not) + '</textarea></div>' +
+    '</div><div class="form-actions"><button class="btn primary" type="submit">Değerlendirmeyi Kaydet</button>' +
+    '<button class="btn" type="button" data-goto="rapor:' + bugun + '">Gün Sonu Raporu →</button></div></form></div>';
+}
+
 /* v38: konsolun üstünde günün canlı sayacı — gün sonu raporuyla aynı kaynaktan */
 function arGunSeridi() {
   const bugun = todayISO();
@@ -3680,12 +3715,12 @@ document.addEventListener('submit', e => {
       persist('updateTask', payload, 'Görev güncellendi')
         .then(ok => { if (!ok) { UI.gorevForm = true; UI.editTask = oncekiEdit; } });
     } else {
-      payload.tarih = UI.raporDate;
+      payload.tarih = form.dataset.tarih || UI.raporDate; /* v38: konsoldan girilince bugün */
       persist('addTask', payload, 'Ek görev eklendi')
         .then(ok => { if (!ok) UI.gorevForm = true; });
     }
   } else if (act === 'not-kaydet') {
-    persist('setNote', { tarih: UI.raporDate, not: d.not }, 'Gün değerlendirmesi kaydedildi');
+    persist('setNote', { tarih: form.dataset.tarih || UI.raporDate, not: d.not }, 'Gün değerlendirmesi kaydedildi');
   } else if (act === 'sinav-ekle') {
     if (d.bas && d.bit && d.bit < d.bas) { toast('Başvuru bitişi başlangıçtan önce olamaz', 3600, true); return; }
     const list = sinavTakvimi().concat([{ id: 'sv' + Date.now(), ad: d.ad.trim(), anahtar: d.anahtar.trim(), tarih: d.tarih, bas: d.bas || '', bit: d.bit || '' }]);
