@@ -923,7 +923,7 @@ function onbellekOku(user) {
 }
 function onbellekYaz(user, rol, rev, ham) {
   if (onbKapali) return;
-  const paket = JSON.stringify({ user: user, rol: rol, rev: rev, data: ham, zaman: Date.now() });
+  const paket = JSON.stringify({ user: user, rol: rol, ad: ADIM, rev: rev, data: ham, zaman: Date.now() });
   try { localStorage.setItem(ONB, paket); }
   catch (e) {
     lsDel(ONB_ARAMA); /* önce büyük listeyi bırak, bir daha dene */
@@ -1462,6 +1462,37 @@ function loginScreen(msg, busy) {
   const p = $('#login-user');
   if (p && !busy) p.focus();
 }
+/* v37: kayıtlı oturumda önce ÖNBELLEKTEN aç (anında), sonra arka planda tazele.
+   Apps Script isteği 2-10 sn sürebiliyor; kullanıcı o süre boyunca beklemesin. */
+async function otoGiris(user, pass) {
+  const onb = onbellekOku(user);
+  if (!onb || !onb.data || !onb.data.students) return tryLogin(user, pass);
+  try {
+    PASS = pass; USER = user;
+    ROL = onb.rol === 'viewer' ? 'viewer' : 'admin';
+    ADIM = onb.ad || '';
+    HAM = onb.data; REV = onb.rev || null;
+    DB = normalizeDB(onb.data);
+    document.documentElement.classList.toggle('izleyici', ROL === 'viewer');
+    enterApp();
+  } catch (e) { return tryLogin(user, pass); }
+  /* arka planda doğrula + değişenleri al */
+  try {
+    const y = await srv('getData', user, pass, REV);
+    const rolYeni = y.rol === 'viewer' ? 'viewer' : 'admin';
+    ADIM = y.ad || ADIM;
+    if (y.delta && rolYeni !== ROL) { onbellekSil(); return tryLogin(user, pass); }
+    ROL = rolYeni;
+    delete y.rol; delete y.ad;
+    veriUygula(y, user, ROL);
+    document.documentElement.classList.toggle('izleyici', ROL === 'viewer');
+    render();
+  } catch (e) {
+    if (/hatalı|deneme/i.test(e.message || '')) { onbellekSil(); logout(); loginScreen(e.message, false); }
+    else toast('Çevrimdışı görünüyorsunuz — ekrandaki veri son kayıttan', 4200, true);
+  }
+}
+
 async function tryLogin(user, pass) {
   if (!pass) return;
   loginScreen('', true);
@@ -2766,6 +2797,11 @@ function arYukle(zorla) {
   ARAMA.durum = 'yukleniyor'; ARAMA.hata = '';
   let onb = null;
   if (!zorla) { try { onb = JSON.parse(lsGet(ONB_ARAMA) || 'null'); } catch (e) { onb = null; } }
+  if (onb && onb.rows && onb.rows.length) { /* v37: önce önbellek, doğrulama arkada */
+    ARAMA.kisiler = onb.rows.map(r => { r._v = null; return r; });
+    ARAMA.durum = 'hazir';
+    if (NAV.page === 'arama') render();
+  }
   srv('getArama', USER, PASS, onb ? onb.rev : null).then(y => {
     let rows;
     if (y && y.degismedi && onb) rows = onb.rows;               /* ~1 MB hiç inmedi */
@@ -4107,7 +4143,7 @@ document.addEventListener('keydown', e => {
   const savedUser = lsGet('kh-user') || '';
   const t = Number(lsGet('kh-t') || 0);
   const taze = t && (Date.now() - t) < 30 * 24 * 60 * 60 * 1000; /* 30 gün */
-  if (saved && taze) tryLogin(savedUser, saved);
+  if (saved && taze) otoGiris(savedUser, saved);
   else { lsDel('kh-pass'); lsDel('kh-t'); loginScreen('', false); }
 })();
 
