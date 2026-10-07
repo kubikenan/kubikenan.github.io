@@ -699,16 +699,7 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 :root { color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
 :root[data-theme="dark"] { color-scheme: dark; }
-/* v42: dokunmatik ekranda parmak hedefleri en az ~40 px (Apple önerisi 44) — masaüstü görünümü değişmez */
-@media (pointer: coarse) {
-  .btn.sm { min-height: 40px; }
-  .icon-btn { min-width: 40px; min-height: 40px; }
-  button.chip, .chip[data-action], .chip[data-goto] { min-height: 34px; display: inline-flex; align-items: center; }
-  select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { min-height: 40px; }
-  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
-  .seg button, .btn.small { min-height: 38px; }
-  .cat-chip button { min-width: 32px; min-height: 32px; }
-}
+/* v42 dokunma hedefi bloğu 08.10.2026 geri alındı ("yazılar kaymış") — scratchpad/v42_dokunma_blogu.css */
 /* v42: iki dokunuşla silme — ilk dokunuş düğmeyi uyarı rengine çevirir */
 .onay-bekliyor { background: var(--bad) !important; color: #fff !important; border-color: transparent !important; }
 
