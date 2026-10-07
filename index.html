@@ -2768,7 +2768,7 @@ function vNewInterview(sid) {
 
 /* ---------- v36: Arama Konsolu — panelin dört arama listesi ---------- */
 const AR_SEVIYE = {
-  'Temel': { f: [['2027 İlkbahar Temel Canlı', '23.900', '38.240', '47.800'], ['Temel Kayıttan', '19.850', '31.760', '39.700']], bas: '21 Eylül 2026', son: '21 Eylül 2026', kitap: '9 kitap ücretsiz', etk: 'sitedeki indirimli fiyat' },
+  'Temel': { f: [['2027 İlkbahar Temel Canlı', '23.900', '38.240', '47.800'], ['Temel Kayıttan', '19.850', '31.760', '39.700']], bas: '28 Eylül 2026', son: '21 Eylül 2026', basladi: true, kitap: '9 kitap ücretsiz', etk: 'sitedeki indirimli fiyat' },
   'İleri': { etk: 'erken kayıt fiyatı', f: [['2027 İlkbahar İleri Canlı', '21.650', '30.310', '43.300'], ['İleri Kayıttan', '17.900', '25.060', '35.800']], bas: '30 Kasım 2026', son: '23 Kasım 2026', kitap: '8 kitap ücretsiz' },
   'Pro Grup': { etk: 'erken kayıt fiyatı', f: [['2027 İlkbahar Pro Canlı', '19.400', '27.160', '38.800'], ['Pro Kayıttan', '17.150', '24.010', '34.300']], bas: '22 Aralık 2026', son: '14 Aralık 2026', kitap: '' }
 };
@@ -2891,7 +2891,9 @@ function arWa(t) { const d = (t || '').replace(/\D/g, ''); return d.length === 1
 /* ---- satış metni ---- */
 function arTeklif(k) {
   const sv = arSv(k);
-  const tarih = 'Ders <b>' + sv.bas + '</b> başlıyor; erken kayıt son tarihi <b>' + sv.son + '</b>' +
+  const tarih = sv.basladi
+    ? 'Ders <b>' + sv.bas + '</b> tarihinde başladı, kayıtlar devam ediyor' + (sv.kitap ? ', ' + sv.kitap : '') + '; geçmiş dersler kayıttan izlenebiliyor.'
+    : 'Ders <b>' + sv.bas + '</b> başlıyor; erken kayıt son tarihi <b>' + sv.son + '</b>' +
     (sv.kitap ? ', ' + sv.kitap : '') + '. Son tarihten sonra liste fiyatı uygulanır.';
   if (k.hak === 'var') {
     return { t: 'Eski öğrencilerimize <b>bir kez</b> tanıdığımız %50 indirim hakkı duruyor: ' +
@@ -2949,7 +2951,7 @@ function arSablonlar(k) {
       : 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona erdi.';
   return [
     { ad: 'Ulaşamadım', m: 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. Sizi aradım ama ulaşamadım. 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum; uygun olduğunuzda dönerseniz sevinirim.' },
-    { ad: 'Fiyat bilgisi', m: 'Merhaba ' + ad + ' Hocam, görüşmemizin ardından fiyatları iletiyorum: ' + fiyat + '. Ders ' + sv.bas + ' tarihinde başlıyor, erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '. Son tarihten sonra liste fiyatı uygulanıyor.' },
+    { ad: 'Fiyat bilgisi', m: 'Merhaba ' + ad + ' Hocam, görüşmemizin ardından fiyatları iletiyorum: ' + fiyat + '. ' + (sv.basladi ? 'Ders ' + sv.bas + ' tarihinde başladı, kayıtlar devam ediyor' + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '; geçmiş dersleri kayıttan izleyebilirsiniz.' : 'Ders ' + sv.bas + ' tarihinde başlıyor, erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '. Son tarihten sonra liste fiyatı uygulanıyor.') },
     { ad: 'Ders süresi', m: 'Merhaba ' + ad + ' Hocam, ders erişiminizle ilgili bilgi: ' + erisim + ' Yeni dönem için ' + sv.bas + ' tarihinde başlayan programımıza kayıt olabilirsiniz.' },
     { ad: 'Kamp', m: 'Merhaba ' + ad + ' Hocam, 22 Kasım YDS için 10 Günlük Soru Çözüm Kampımız 9 Kasım\'da başlıyor (hafta içi 19:30-23:00, 21 Kasım\'da ek ders). Canlı 7.000 ₺, kayıttan 6.000 ₺. Kamp 50 puan ve üstü seviye için uygundur.' }
   ];
@@ -3160,7 +3162,7 @@ function arDetay(k) {
     '<table class="data"><thead><tr><th>Paket</th><th class="num">Liste</th><th class="num">Sitedeki</th><th class="num">%50 (listeden)</th></tr></thead><tbody>' +
     sv.f.map(f => '<tr><td>' + esc(f[0]) + '</td><td class="num dim">' + f[3] + ' ₺</td><td class="num' + (k.hak === 'var' ? ' dim' : '') + '">' + f[2] + ' ₺</td>' +
       '<td class="num' + (k.hak === 'var' ? '' : ' dim') + '"><b>' + f[1] + ' ₺</b></td></tr>').join('') + '</tbody></table>' +
-    '<p class="small dim">Ders başlangıcı ' + sv.bas + ' · erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' · ' + sv.kitap : '') + '. ' +
+    '<p class="small dim">Ders başlangıcı ' + sv.bas + (sv.basladi ? ' (başladı, kayıt sürüyor)' : ' · erken kayıt son tarihi ' + sv.son) + (sv.kitap ? ' · ' + sv.kitap : '') + '. ' +
     (k.hak === 'var' ? 'Bu öğrenci %50\'yi kullanabilir.' : '%50 hakkı bitmiş — sitedeki fiyat geçerli.') + '</p></div>';
 
   const ivTarih = todayISO();
