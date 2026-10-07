@@ -1536,6 +1536,11 @@ async function otoGiris(user, pass) {
   } catch (e) { return tryLogin(user, pass); }
   /* arka planda doğrula + değişenleri al */
   try {
+    /* v42.2: eski kayıtlı düz şifre → ekran önbellekten açıldıktan SONRA arka planda anahtara çevrilir */
+    if (!OTURUM(pass)) {
+      pass = (await srv('girisYap', user, pass)).token;
+      PASS = pass; lsSet('kh-pass', pass); lsSet('kh-t', String(Date.now()));
+    }
     const y = await srv('getData', user, pass, REV);
     const rolYeni = y.rol === 'viewer' ? 'viewer' : 'admin';
     ADIM = y.ad || ADIM;
@@ -4504,8 +4509,7 @@ document.addEventListener('keydown', e => {
   const savedUser = lsGet('kh-user') || '';
   const t = Number(lsGet('kh-t') || 0);
   const taze = t && (Date.now() - t) < 30 * 24 * 60 * 60 * 1000; /* 30 gün */
-  if (saved && taze && !OTURUM(saved)) tryLogin(savedUser, saved); /* v41: eski kayıtlı düz şifre → anahtara çevrilir, şifre silinir */
-  else if (saved && taze) otoGiris(savedUser, saved);
+  if (saved && taze) otoGiris(savedUser, saved); /* v42.2: düz şifre de önce önbellekten açılır, anahtara arkada çevrilir */
   else { lsDel('kh-pass'); lsDel('kh-t'); loginScreen('', false); }
 })();
 
