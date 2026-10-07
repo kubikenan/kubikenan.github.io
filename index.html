@@ -702,6 +702,9 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 /* v42 dokunma hedefi bloğu 08.10.2026 geri alındı ("yazılar kaymış") — scratchpad/v42_dokunma_blogu.css */
 /* v42: iki dokunuşla silme — ilk dokunuş düğmeyi uyarı rengine çevirir */
 .onay-bekliyor { background: var(--bad) !important; color: #fff !important; border-color: transparent !important; }
+/* v43: Sistem Tanıtımları katlanır bölüm */
+.tanitim-blok > summary { cursor: pointer; padding: 10px 0; list-style-position: inside; }
+.tanitim-blok[open] > summary { border-bottom: 1px solid var(--border); margin-bottom: 6px; }
 
 
 /* ---------- AGS & YDS Adayları ---------- */
@@ -897,6 +900,10 @@ function gunFarki(iso) {
   const [y, m, d] = iso.split('-').map(Number); const [ty, tm, td] = todayISO().split('-').map(Number);
   return Math.round((new Date(ty, tm - 1, td) - new Date(y, m - 1, d)) / 86400000);
 }
+/* v43: 'Sistem Tanıtımı · …' şablonları ayrı, katlanır bölümde (sunucu yalnız izinli kişilere gönderir) */
+const TANITIM_ONEK = 'Sistem Tanıtımı · ';
+const tanitimMi = t => String(t.ad || '').indexOf(TANITIM_ONEK) === 0;
+const tanitimAd = t => String(t.ad || '').slice(TANITIM_ONEK.length);
 function sablonMetni(t, st) { return t.metin.replace(/\{AD\}/g, st ? ilkAd(st.ad) : '{AD}'); }
 /* sınav takvimi: Ayarlar.sinavTakvimi JSON dizisi [{id, ad, anahtar, tarih, bas, bit}]; boşsa varsayılan */
 const VARSAYILAN_TAKVIM = [{ id: 'sv1', ad: 'YDS/2 2026', anahtar: 'YDS', tarih: '2026-11-22', bas: '2026-09-30', bit: '2026-10-08' }];
@@ -2130,9 +2137,14 @@ function vStudent(id) {
   /* mesaj paneli */
   const msgPanel = UI.msgOpen ?
     '<div class="card section card-pad"><h2 class="card-title">💬 Hazır Mesaj Gönder — tıklayınca ' + esc(ilkAd(st.ad)) + ' adına uyarlanıp kopyalanır</h2>' +
-    (DB.templates.length ? '<div class="msg-list">' + DB.templates.map(t =>
-      '<div class="msg-row"><b class="small">' + esc(t.ad) + '</b><span class="nowrap"><button class="btn sm" data-action="msg-kopyala" data-id="' + esc(t.id) + '" data-sid="' + esc(st.id) + '">📋 Kopyala</button> ' +
-      waChip(st.tel, sablonMetni(t, st), '💬 WhatsApp\'ta gönder') + '</span></div>').join('') + '</div>'
+    (DB.templates.length ? (() => {
+      const satir = (t, ad) => '<div class="msg-row"><b class="small">' + esc(ad) + '</b><span class="nowrap"><button class="btn sm" data-action="msg-kopyala" data-id="' + esc(t.id) + '" data-sid="' + esc(st.id) + '">📋 Kopyala</button> ' +
+        waChip(st.tel, sablonMetni(t, st), '💬 WhatsApp\'ta gönder') + '</span></div>';
+      const normal = DB.templates.filter(t => !tanitimMi(t)), tanitim = DB.templates.filter(tanitimMi);
+      return (normal.length ? '<div class="msg-list">' + normal.map(t => satir(t, t.ad)).join('') + '</div>' : '') +
+        (tanitim.length ? '<details class="tanitim-blok"><summary><b>📘 Sistem Tanıtımları</b> <span class="dim small">(' + tanitim.length + ' program — satın alma sonrası karşılama)</span></summary>' +
+          '<div class="msg-list">' + tanitim.map(t => satir(t, tanitimAd(t))).join('') + '</div></details>' : '');
+    })()
       : '<div class="dim small">Henüz şablon yok — <a data-goto="sablon">Mesaj Şablonları</a> sayfasından ekleyin.</div>') +
     '</div>' : '';
 
@@ -2324,13 +2336,18 @@ function vTemplates() {
     '<div class="field wide"><label>Mesaj Metni — {AD} yazan yere öğrencinin adı gelir</label><textarea name="metin" rows="4" required>' + tv('metin') + '</textarea></div>' +
     '</div><div class="form-actions"><button class="btn primary" type="submit">' + (et ? 'Şablonu Güncelle' : 'Şablonu Ekle') + '</button>' +
     '<button class="btn" type="button" data-action="sablon-vazgec">Vazgeç</button></div></form></div>' : '';
-  const kartlar = DB.templates.map(t =>
+  const tanitimlar = DB.templates.filter(tanitimMi);
+  const tanitimBlok = tanitimlar.length ? '<details class="card section card-pad tanitim-blok"><summary><b>📘 Sistem Tanıtımları</b> <span class="dim small">(' + tanitimlar.length +
+    ' program · yalnız Kubilay Kenan Hoca ve Ümit Hoca görür)</span></summary><div class="msg-list" style="margin-top:10px">' +
+    tanitimlar.map(t => '<div class="msg-row"><b class="small">' + esc(tanitimAd(t)) + '</b><span class="nowrap"><button class="btn sm" data-action="sablon-kopyala" data-id="' + esc(t.id) + '">📋 Kopyala</button> ' +
+      rowActions('sablon', t.id) + '</span></div>').join('') + '</div></details>' : '';
+  const kartlar = DB.templates.filter(t => !tanitimMi(t)).map(t =>
     '<div class="card section"><div class="iv-head"><b>' + esc(t.ad) + '</b>' + rowActions('sablon', t.id) + '</div>' +
     '<div class="iv-body"><p class="iv-note" style="margin:0">' + esc(t.metin) + '</p>' +
     '<div class="form-actions"><button class="btn sm" data-action="sablon-kopyala" data-id="' + esc(t.id) + '">Kopyala ({AD} olduğu gibi kalır)</button></div></div></div>').join('');
   return '<div class="page-head"><div><h1>Mesaj Şablonları</h1><div class="sub">Öğrenci profilindeki 💬 Mesaj düğmesi bu şablonları öğrencinin adıyla kişiselleştirir</div></div>' +
     '<div class="head-actions">' + (UI.sablonForm ? '' : '<button class="btn primary" data-action="sablon-ac">+ Yeni Şablon</button>') + '</div></div>' +
-    formHtml + (kartlar || '<div class="card empty section">Henüz şablon yok — "+ Yeni Şablon" ile ekleyin</div>');
+    formHtml + (kartlar || (tanitimBlok ? '' : '<div class="card empty section">Henüz şablon yok — "+ Yeni Şablon" ile ekleyin</div>')) + tanitimBlok;
 }
 
 /* ---------- Liste Ayarları (kataloglar) ---------- */
