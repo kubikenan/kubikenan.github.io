@@ -695,6 +695,23 @@ tr.oncelikli td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sur
 .ar-gunsonu .alt-baslik { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
 .ar-gunsonu table.data { margin-bottom: 4px; }
 
+/* v42 arayüz denetimi (08.10.2026): tarayıcının kendi denetimleri (tarih seçici, açılır liste, kaydırma çubuğu) temaya uysun */
+:root { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+:root[data-theme="dark"] { color-scheme: dark; }
+/* v42: dokunmatik ekranda parmak hedefleri en az ~40 px (Apple önerisi 44) — masaüstü görünümü değişmez */
+@media (pointer: coarse) {
+  .btn.sm { min-height: 40px; }
+  .icon-btn { min-width: 40px; min-height: 40px; }
+  button.chip, .chip[data-action], .chip[data-goto] { min-height: 34px; display: inline-flex; align-items: center; }
+  select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { min-height: 40px; }
+  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+  .seg button, .btn.small { min-height: 38px; }
+  .cat-chip button { min-width: 32px; min-height: 32px; }
+}
+/* v42: iki dokunuşla silme — ilk dokunuş düğmeyi uyarı rengine çevirir */
+.onay-bekliyor { background: var(--bad) !important; color: #fff !important; border-color: transparent !important; }
+
 
 /* ---------- AGS & YDS Adayları ---------- */
 .ags-card { border-left-color: var(--warn); }
@@ -1005,8 +1022,26 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
    (GitHub Pages / yerel dist) EXEC_URL'e fetch ile doPost {action:'rpc'}.
    Content-Type text/plain "basit istek"tir — CORS ön kontrolü tetiklemez,
    Apps Script'in googleusercontent yönlendirmesi yanıtı herkese açar. */
+/* v42: kullanıcıya teknik/İngilizce hata gösterme; sunucunun kendi Türkçe mesajları aynen geçer */
+function hataMetni(e) {
+  const m = String(e && e.message || e || '');
+  if (/Failed to fetch|NetworkError|Load failed|network|ERR_INTERNET|ERR_NETWORK/i.test(m)) return 'İnternet bağlantısı yok ya da sunucuya ulaşılamadı — bağlantınızı kontrol edip tekrar deneyin';
+  if (/Unexpected token|JSON/i.test(m)) return 'Sunucudan beklenmeyen yanıt geldi — sayfayı yenileyip tekrar deneyin';
+  if (/Cannot read prop|is not a function|undefined|null/i.test(m) && !/[çğıöşüÇĞİÖŞÜ]/.test(m)) return 'Beklenmeyen bir hata oluştu — sayfayı yenileyip tekrar deneyin (' + m.slice(0, 60) + ')';
+  return m;
+}
+const SRV_SURE = 60000; /* Apps Script zaman zaman 30 sn'ye çıkıyor; 60 sn'de vazgeç */
 function srv(fn) {
   const args = [].slice.call(arguments, 1);
+  const yaz = /^(saveAction|cikisYap)$/.test(fn);
+  let sayac;
+  const zamanAsimi = new Promise((_, rej) => { sayac = setTimeout(() => rej(new Error(yaz
+    ? 'Sunucu 60 saniyede yanıt vermedi — kayıt yine de yapılmış olabilir; sayfayı yenileyip kontrol edin'
+    : 'Sunucu 60 saniyede yanıt vermedi — biraz sonra tekrar deneyin')), SRV_SURE); });
+  return Promise.race([srvHam(fn, args).finally(() => clearTimeout(sayac)), zamanAsimi])
+    .catch(e => { throw new Error(hataMetni(e)); });
+}
+function srvHam(fn, args) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     return new Promise((resolve, reject) => {
       const runner = google.script.run
@@ -3634,6 +3669,12 @@ document.addEventListener('click', e => {
       el.dataset.kind === 'purge' ? 'Kalıcı olarak silindi' : 'Silindi — gerekirse Silinenler\'den geri alabilirsiniz');
   } else if (act === 'del-vazgec') { render(); }
   else if (act === 'geri-al') { persist('restoreTrash', { id: el.dataset.id }, 'Kayıt geri alındı ↩'); }
+  else if ((act === 'katalog-sil' || act === 'sinav-sil') && !el.classList.contains('onay-bekliyor')) {
+    /* v42: tek dokunuşta silme yok — ilk dokunuş uyarı, 4 sn içinde ikinci dokunuş siler */
+    const eski = el.innerHTML;
+    el.classList.add('onay-bekliyor'); el.textContent = 'Sil?'; el.title = 'Silmek için tekrar dokunun';
+    setTimeout(() => { if (el.isConnected) { el.classList.remove('onay-bekliyor'); el.innerHTML = eski; el.title = ''; } }, 4000);
+  }
   else if (act === 'katalog-sil') { persist('deleteCatalog', { tur: el.dataset.tur, deger: el.dataset.deger }, 'Seçenek listeden çıkarıldı'); }
   else if (act === 'tema') { applyTheme(el.dataset.t); updateBadges(); toast(el.dataset.t === 'dark' ? 'Koyu tema 🌙' : el.dataset.t === 'light' ? 'Açık tema ☀️' : 'Otomatik tema (cihaza uyar)'); }
   else if (act === 'gs-pick') {
