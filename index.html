@@ -3080,20 +3080,71 @@ function arRepl(k) {
   [arEkUrun(k), arItiraz(k), arKapanis(k), arAraclar()].forEach(x => { if (x) out.push(x); });
   return out;
 }
+/* v40: WhatsApp şablonları kişiye özel (07.10.2026) — düz metin, HTML yok */
+function arDuz(h) { return String(h || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); }
+function arSinavSatir(k) {
+  const bugun = todayISO(), hs = aramaKatla(arPuanlar(k).sinav || '');
+  if (/yokdil/.test(hs)) return '';
+  let l = sinavTakvimi().filter(x => (x.tarih || '') >= bugun && ((x.bit && x.bit >= bugun) || /geç başvuru/i.test(x.ad || '')))
+    .sort((x, y) => x.tarih.localeCompare(y.tarih));
+  const eyds = /eyds|e yds/.test(hs);
+  const uy = l.filter(x => eyds ? /e-?yds/i.test(x.ad) : !/^e-/i.test(x.ad));
+  const x = (uy.length ? uy : l)[0];
+  if (!x) return '';
+  const gec = /geç başvuru\s*([\d.]+)/i.exec(x.ad || '');
+  const ad = (x.ad || '').replace(/\s*\(geç başvuru[^)]*\)/i, '');
+  return 'Hatırlatma: ' + arGun(x.tarih) + ' ' + ad + ' sınavının başvuru son günü ' +
+    (x.bit && x.bit >= bugun ? arGun(x.bit) + (gec ? ' (geç başvuru ' + gec[1] + ')' : '') : 'geçti' + (gec ? ', geç başvuru ' + gec[1] : '')) + '.';
+}
+function arPuanSatir(k) {
+  const x = arPuanlar(k);
+  if (!x.ap || !x.hp) return '';
+  if (x.ap >= x.hp) return 'Son puanınız ' + x.ap + ' ile hedefinizi yakalamışsınız; bir üst basamak için de birlikte plan yapabiliriz.';
+  return 'Son puanınız ' + x.ap + ', hedefiniz ' + x.hp + ': aradaki fark 80 sorudan yaklaşık ' + Math.ceil((x.hp - x.ap) / 1.25) + ' doğru.';
+}
 function arSablonlar(k) {
   const v = arVeri(k), sv = arSv(k), ad = (k.ad || '').split(' ')[0];
+  const bas = 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan Hoca.';
+  const aktif = k.kod[0] === '4' || k.kod[0] === '5';
   const fiyat = k.hak === 'var'
-    ? sv.f[0][0] + ' ' + sv.f[0][1] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][1] + ' ₺ (eski öğrenci %50)'
-    : sv.f[0][0] + ' ' + sv.f[0][2] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][2] + ' ₺ (' + sv.etk + ')';
-  const erisim = v.et === 'don' ? 'Dersiniz ' + (v.ed || '') + ' tarihinde donduruldu' + (v.dk ? ', ' + v.dk + ' günlük hakkınız duruyor' : '') + '.'
-    : v.et === 'acik' ? 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona eriyor.'
-      : 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona erdi.';
-  return [
-    { ad: 'Ulaşamadım', m: 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan Hoca. Sizi aradım ama ulaşamadım. 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum; uygun olduğunuzda dönerseniz sevinirim.' },
-    { ad: 'Fiyat bilgisi', m: 'Merhaba ' + ad + ' Hocam, görüşmemizin ardından fiyatları iletiyorum: ' + fiyat + '. ' + (sv.basladi ? 'Ders ' + sv.bas + ' tarihinde başladı, kayıtlar devam ediyor' + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '; geçmiş dersleri kayıttan izleyebilirsiniz.' : 'Ders ' + sv.bas + ' tarihinde başlıyor, erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '. Son tarihten sonra liste fiyatı uygulanıyor.') },
-    { ad: 'Ders süresi', m: 'Merhaba ' + ad + ' Hocam, ders erişiminizle ilgili bilgi: ' + erisim + ' Yeni dönem için ' + sv.bas + ' tarihinde başlayan programımıza kayıt olabilirsiniz.' },
-    { ad: 'Kamp', m: 'Merhaba ' + ad + ' Hocam, 22 Kasım YDS için 10 Günlük Soru Çözüm Kampımız 9 Kasım\'da başlıyor (hafta içi 19:30-23:00, 21 Kasım\'da ek ders). Canlı 7.000 ₺, kayıttan 6.000 ₺. Kamp 50 puan ve üstü seviye için uygundur.' }
-  ];
+    ? sv.f[0][0] + ' ' + sv.f[0][1] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][1] + ' ₺ (eski öğrencilere bir kez tanıdığımız %50, liste fiyatı ' + sv.f[0][3] + ' / ' + sv.f[1][3] + ' ₺ üzerinden)'
+    : sv.f[0][0] + ' ' + sv.f[0][2] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][2] + ' ₺ (' + sv.etk + '; liste ' + sv.f[0][3] + ' / ' + sv.f[1][3] + ' ₺)';
+  const tarih = sv.basladi
+    ? 'Ders ' + sv.bas + ' tarihinde başladı, kayıtlar devam ediyor' + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '; geçmiş dersleri kayıttan izleyebilirsiniz.'
+    : 'Ders ' + sv.bas + ' tarihinde başlıyor; erken kayıt fiyatının son günü ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + ', sonrasında liste fiyatı uygulanıyor.';
+  const sinav = arSinavSatir(k), puan = arPuanSatir(k);
+  const ekU = arEkUrun(k), ekSatir = ekU ? arDuz(ekU.t) : '';
+  const out = [];
+  /* 1 — ulaşamadım: neden aradığımız kişiye göre */
+  let sebep;
+  if (aktif) sebep = 'Yeni dönem dersleriniz için kısa bir durum görüşmesi yapmak istiyorum.';
+  else if (v.et === 'don') sebep = 'Dondurduğunuz dersiniz' + (v.dk ? 'de ' + v.dk + ' günlük hakkınız duruyor' : ' duruyor') + '; isterseniz hemen açabilir, 2027 İlkbahar dönemini de konuşabiliriz.';
+  else if (v.et === 'acik' && v.dk != null && v.dk <= 60) sebep = 'Ders erişiminiz ' + (v.ed ? v.ed + ' tarihinde bitiyor' : 'yakında bitiyor') + ' (' + v.dk + ' gün kaldı); süreniz dolmadan 2027 İlkbahar dönemini konuşmak istiyorum.';
+  else if (k.hak === 'var') sebep = 'Eski öğrencilerimize bir kez tanıdığımız %50 indirim hakkınız duruyor; 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum.';
+  else sebep = '2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum.';
+  out.push({ ad: 'Ulaşamadım', m: [bas, 'Sizi aradım ama ulaşamadım.', sebep, sinav, 'Uygun olduğunuzda dönerseniz sevinirim.'].filter(Boolean).join(' ') });
+  /* 2 — fiyat bilgisi (paketi aktif olana yok) */
+  if (!aktif) out.push({ ad: 'Fiyat bilgisi', m: [bas, 'Görüşmemizin ardından size özel fiyatları iletiyorum: ' + fiyat + '.', tarih, puan, ekSatir ? 'Ayrıca ' + ekSatir.charAt(0).toLocaleLowerCase('tr') + ekSatir.slice(1) : '', 'Kaydınızı açmak isterseniz ödeme bağlantısını buradan gönderebilirim.'].filter(Boolean).join(' ') });
+  /* 3 — ders süresi: açık ve dondurulmuş dersleri tek tek say */
+  const d = v.ders || {}, acik = d.acik || [], don = d.don || [];
+  let sure = [];
+  acik.forEach(x => sure.push((x.a || []).join(', ') + ': ' + x.t + ' tarihine kadar açık (' + x.k + ' gün kaldı)'));
+  don.forEach(x => sure.push((x.a || 'Dersiniz') + ': dondurulmuş' + (x.k ? ', ' + x.k + ' gün hakkınız var' : '')));
+  if (!sure.length) sure.push(v.et === 'don' ? 'Dersiniz ' + (v.ed ? v.ed + ' tarihinde ' : '') + 'donduruldu' + (v.dk ? ', ' + v.dk + ' günlük hakkınız duruyor' : '')
+    : v.et === 'acik' ? 'Ders erişiminiz ' + (v.ed ? v.ed + ' tarihinde sona eriyor' : 'yakında sona eriyor') : 'Ders erişiminiz ' + (v.ed ? v.ed + ' tarihinde sona erdi' : 'sona erdi'));
+  out.push({ ad: 'Ders süresi', m: [bas, 'Ders erişiminizle ilgili bilgi: ' + sure.join(' · ') + '.', aktif ? '' : 'Yeni dönem için ' + (sv.basladi ? sv.bas + ' tarihinde başlayan' : sv.bas + ' tarihinde başlayacak') + ' programımıza kayıt olabilirsiniz.'].filter(Boolean).join(' ') });
+  /* 4 — geçen görüşmenin takibi (sitede önerilen/düşünülen program varsa) */
+  const g = arSiteSon(k);
+  if (g && (g.onerilen || g.dusunulenProgram)) out.push({ ad: 'Geçen görüşme takibi', m: [bas, arGun((g.tarih || '').slice(0, 10)) + ' tarihli görüşmemizde ' + (g.onerilen ? 'şunu önermiştik: ' + g.onerilen : 'düşündüğünüz program: ' + g.dusunulenProgram) + '.', 'Bu konuda nasıl gidiyor, karar verebildiniz mi?', puan].filter(Boolean).join(' ') });
+  /* 5 — kamp: yalnız uygun ve kampı olmayana */
+  const xp = arPuanlar(k);
+  if (/Soru Çözüm Kampı/.test(ekSatir)) out.push({ ad: 'Kamp', m: [bas, '22 Kasım YDS için 10 Günlük Soru Çözüm Kampımız 9 Kasım\'da başlıyor (hafta içi 19:30-23:00, 21 Kasım\'da ek ders). Canlı 7.000 ₺, kayıttan 6.000 ₺.',
+    xp.ap ? 'Son puanınız ' + xp.ap + (xp.hp ? ', hedefiniz ' + xp.hp : '') + '; kamp tam bu aralıkta soru temposu ve süre yönetimi kazandırıyor.' : 'Kamp 50 puan ve üstü seviyedeki öğrencilerimiz için uygundur.', arSinavSatir(k)].filter(Boolean).join(' ') });
+  /* 6 — sınav hatırlatma (başvuru açıksa) */
+  if (sinav) out.push({ ad: 'Sınav hatırlatma', m: [bas, sinav, puan, 'Hazırlık planınızı birlikte yapmak isterseniz buradan yazabilirsiniz.'].filter(Boolean).join(' ') });
+  /* 7 — ücretsiz araçlar */
+  out.push({ ad: 'Ücretsiz araçlar', m: bas + ' Çalışmanızda işinize yarayabilecek ücretsiz araçlarımız: YDS puan hesaplama https://www.ankaradil.com/yds/28-yds-puan-hesaplama · YDS–YÖKDİL sözlüğü https://www.ankaradil.com/yds/29-yds-sozlugu · ÖSYM sınav takvimi https://www.ankaradil.com/yds/30-osym-sinav-takvimi · duyurular için WhatsApp kanalımız https://whatsapp.com/channel/0029Vb8bkTEFCCoeDnWsqC3L' });
+  return out;
 }
 
 /* ---- görünüm ---- */
