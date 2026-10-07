@@ -12,6 +12,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Öğrenci Takip">
 <meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'self'">
+<meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>:root {
@@ -1051,6 +1053,7 @@ async function persist(action, payload, flashMsg) {
     toast(flashMsg + ' ✓');
     return true;
   } catch (e) {
+    if (/oturum hatalı/.test(e.message || '')) { logout(); loginScreen('Oturumunuzun süresi doldu — şifrenizle tekrar giriş yapın', false); return false; }
     toast('Kaydedilemedi: ' + e.message, 4600, true);
     return false;
   } finally {
@@ -1517,15 +1520,18 @@ async function otoGiris(user, pass) {
     document.documentElement.classList.toggle('izleyici', ROL === 'viewer');
     render();
   } catch (e) {
-    if (/hatalı|deneme/i.test(e.message || '')) { onbellekSil(); logout(); loginScreen(e.message, false); }
+    if (/hatalı|deneme|oturum/i.test(e.message || '')) { onbellekSil(); logout(); loginScreen(String(e.message).replace(/ \(oturum hatalı\)/, ''), false); }
     else toast('Çevrimdışı görünüyorsunuz — ekrandaki veri son kayıttan', 4200, true);
   }
 }
 
+const OTURUM = s => /^ot1\./.test(String(s || ''));
 async function tryLogin(user, pass) {
   if (!pass) return;
   loginScreen('', true);
   try {
+    /* v41: şifre tarayıcıda SAKLANMAZ — sunucudan 30 günlük oturum anahtarı alınır */
+    if (!OTURUM(pass)) pass = (await srv('girisYap', user, pass)).token;
     const onb = onbellekOku(user);
     let data = await srv('getData', user, pass, onb ? onb.rev : null);
     PASS = pass; USER = user;
@@ -1545,10 +1551,11 @@ async function tryLogin(user, pass) {
     enterApp();
   } catch (e) {
     lsDel('kh-pass'); lsDel('kh-user'); lsDel('kh-t');
-    loginScreen(/hatalı|deneme/i.test(e.message) ? e.message : 'Bağlantı sorunu: ' + e.message, false);
+    loginScreen(/hatalı|deneme|oturum/i.test(e.message) ? e.message.replace(/ \(oturum hatalı\)/, '') : 'Bağlantı sorunu: ' + e.message, false);
   }
 }
 function logout() {
+  if (OTURUM(PASS)) srv('cikisYap', USER, PASS).catch(() => {}); /* v41: sunucudaki oturumu da kapat */
   lsDel('kh-pass'); lsDel('kh-user'); lsDel('kh-t');
   onbellekSil();
   PASS = null; DB = null;
@@ -3980,13 +3987,20 @@ document.addEventListener('submit', e => {
     const oncekiKS = UI.kisiSifre;
     UI.kisiSifre = '';
     persist('setKisi', { ad: form.dataset.ad, sifre: d.sifre }, form.dataset.ad + ' şifresi değiştirildi 🔑')
-      .then(ok => { if (!ok) UI.kisiSifre = oncekiKS; }); /* v33 */
+      .then(ok => {
+        if (!ok) { UI.kisiSifre = oncekiKS; return; } /* v33 */
+        /* v41: kendi şifresini buradan değiştirdiyse oturumu yenile; başkasınınkiyse onun açık oturumları kendiliğinden düşer */
+        if (String(form.dataset.ad).toLocaleLowerCase('tr') === String(ADIM).toLocaleLowerCase('tr'))
+          srv('girisYap', USER, d.sifre).then(r => { PASS = r.token; lsSet('kh-pass', r.token); lsSet('kh-t', String(Date.now())); }).catch(() => {});
+      });
   } else if (act === 'sifre-degistir') {
     if (d.yeni !== d.yeni2) { toast('Yeni şifreler eşleşmiyor', 3500, true); return; }
     persist('sifreDegistir', { eski: d.eski, yeni: d.yeni }, 'Şifreniz değiştirildi 🔑')
       .then(ok => {
         /* bellekteki sifre eskirse sonraki her istek reddedilir — hemen guncelle */
-        if (ok) { PASS = d.yeni; lsSet('kh-pass', d.yeni); lsSet('kh-t', String(Date.now())); }
+        /* v41: şifre değişince eski oturum anahtarı düşer — yeni şifreyle yeni anahtar al */
+        if (ok) srv('girisYap', USER, d.yeni).then(r => { PASS = r.token; lsSet('kh-pass', r.token); lsSet('kh-t', String(Date.now())); })
+          .catch(() => { logout(); loginScreen('Şifreniz değişti — yeni şifrenizle giriş yapın', false); });
       });
   } else if (act === 'takip-kaydet') {
     UI.takipForm = false; /* v33: hata olursa aşağıda geri açılır */
@@ -4458,7 +4472,8 @@ document.addEventListener('keydown', e => {
   const savedUser = lsGet('kh-user') || '';
   const t = Number(lsGet('kh-t') || 0);
   const taze = t && (Date.now() - t) < 30 * 24 * 60 * 60 * 1000; /* 30 gün */
-  if (saved && taze) otoGiris(savedUser, saved);
+  if (saved && taze && !OTURUM(saved)) tryLogin(savedUser, saved); /* v41: eski kayıtlı düz şifre → anahtara çevrilir, şifre silinir */
+  else if (saved && taze) otoGiris(savedUser, saved);
   else { lsDel('kh-pass'); lsDel('kh-t'); loginScreen('', false); }
 })();
 
