@@ -2768,9 +2768,9 @@ function vNewInterview(sid) {
 
 /* ---------- v36: Arama Konsolu — panelin dört arama listesi ---------- */
 const AR_SEVIYE = {
-  'Temel': { f: [['2027 İlkbahar Temel Canlı', '23.900', '33.460', '47.800'], ['Temel Kayıttan', '19.850', '27.790', '39.700']], bas: '21 Eylül 2026', son: '21 Eylül 2026', kitap: '9 kitap ücretsiz' },
-  'İleri': { f: [['2027 İlkbahar İleri Canlı', '21.650', '30.310', '43.300'], ['İleri Kayıttan', '17.900', '25.060', '35.800']], bas: '30 Kasım 2026', son: '23 Kasım 2026', kitap: '8 kitap ücretsiz' },
-  'Pro Grup': { f: [['2027 İlkbahar Pro Canlı', '19.400', '27.160', '38.800'], ['Pro Kayıttan', '17.150', '24.010', '34.300']], bas: '22 Aralık 2026', son: '14 Aralık 2026', kitap: '' }
+  'Temel': { f: [['2027 İlkbahar Temel Canlı', '23.900', '38.240', '47.800'], ['Temel Kayıttan', '19.850', '31.760', '39.700']], bas: '21 Eylül 2026', son: '21 Eylül 2026', kitap: '9 kitap ücretsiz', etk: 'sitedeki indirimli fiyat' },
+  'İleri': { etk: 'erken kayıt fiyatı', f: [['2027 İlkbahar İleri Canlı', '21.650', '30.310', '43.300'], ['İleri Kayıttan', '17.900', '25.060', '35.800']], bas: '30 Kasım 2026', son: '23 Kasım 2026', kitap: '8 kitap ücretsiz' },
+  'Pro Grup': { etk: 'erken kayıt fiyatı', f: [['2027 İlkbahar Pro Canlı', '19.400', '27.160', '38.800'], ['Pro Kayıttan', '17.150', '24.010', '34.300']], bas: '22 Aralık 2026', son: '14 Aralık 2026', kitap: '' }
 };
 const AR_FIYAT = [
   { g: '2026 Sonbahar — dönem başladı, yalnız kayıttan satılıyor', s: [
@@ -2780,15 +2780,15 @@ const AR_FIYAT = [
     ['Pro Grup Kayıttan', 32300, null], ['Pro Grup Kayıttan + Word Up', 36300, null],
     ['Pro Grup Kayıttan + Okuma Stratejileri', 36800, null], ['Pro Grup Kayıttan + Word Up + Okuma', 40800, null],
     ['Temel Seviye Kayıttan', 37400, null], ['Temel Seviye Kayıttan + Word Up', 41300, null]] },
-  { g: '2027 İlkbahar — erken kayıt fiyatı (liste üstü çizili)', s: [
+  { g: '2027 İlkbahar — sitedeki fiyat (liste üstü çizili) · %50 liste fiyatı üzerinden', liste: true, s: [
     ['İleri Seviye Canlı', 30310, 43300], ['İleri Seviye Canlı + Word Up', 33250, 47500],
     ['İleri Seviye Kayıttan', 25060, 35800], ['İleri Seviye Kayıttan + Word Up', 28000, 40000],
     ['Pro Grup Canlı', 27160, 38800], ['Pro Grup Canlı + Word Up', 29680, 42400],
     ['Pro Grup Canlı + Okuma Stratejileri', 30520, 43600], ['Pro Grup Canlı + Word Up + Okuma', 33460, 47800],
     ['Pro Grup Kayıttan', 24010, 34300], ['Pro Grup Kayıttan + Word Up', 26950, 38500],
     ['Pro Grup Kayıttan + Okuma Stratejileri', 27370, 39100], ['Pro Grup Kayıttan + Word Up + Okuma', 30310, 43300],
-    ['Temel Seviye Canlı', 33460, 47800], ['Temel Seviye Canlı + Word Up', 36400, 52000],
-    ['Temel Seviye Kayıttan', 27790, 39700], ['Temel Seviye Kayıttan + Word Up', 30730, 43900]] },
+    ['Temel Seviye Canlı', 38240, 47800], ['Temel Seviye Canlı + Word Up', 41600, 52000],
+    ['Temel Seviye Kayıttan', 31760, 39700], ['Temel Seviye Kayıttan + Word Up', 35120, 43900]] },
   { g: 'Ek ürünler — Word Up · Soru Çözüm Kampı · Okuma dersleri', s: [
     ['Word Up Kelime Dersi', 7000, null], ['Word Up YKS-DİL', 4000, null],
     ['Word Up + Okuma Stratejileri (paket)', 11900, 15000],
@@ -2896,9 +2896,9 @@ function arTeklif(k) {
   if (k.hak === 'var') {
     return { t: 'Eski öğrencilerimize <b>bir kez</b> tanıdığımız %50 indirim hakkı duruyor: ' +
         sv.f.map(x => x[0] + ' <b>' + x[1] + ' ₺</b>').join(' · ') + '. ' + tarih,
-      ek: 'Sitedeki erken kayıt fiyatı ' + sv.f[0][2] + ' ₺ / ' + sv.f[1][2] + ' ₺ — %50 bunun altında. Hak ömür boyu tek kullanım, bu alımda biter.' };
+      ek: '%50 liste fiyatı üzerinden: liste ' + sv.f[0][3] + ' ₺ / ' + sv.f[1][3] + ' ₺ → ' + sv.f[0][1] + ' ₺ / ' + sv.f[1][1] + ' ₺ (sitedeki ' + sv.etk + ' ' + sv.f[0][2] + ' ₺ / ' + sv.f[1][2] + ' ₺). Hak ömür boyu tek kullanım, bu alımda biter.' };
   }
-  return { t: 'Erken kayıt fiyatı: ' + sv.f.map(x => x[0] + ' <b>' + x[2] + ' ₺</b>').join(' · ') +
+  return { t: sv.etk.charAt(0).toLocaleUpperCase('tr') + sv.etk.slice(1) + ': ' + sv.f.map(x => x[0] + ' <b>' + x[2] + ' ₺</b>').join(' · ') +
       ' (liste ' + sv.f[0][3] + ' ₺ / ' + sv.f[1][3] + ' ₺). ' + tarih,
     ek: '%50 eski öğrenci hakkı daha önce kullanılmış — tek seferlik olduğu için tekrar verilemez (kamp / Word Up gibi bir kursta kullanılmış olması da hakkı bitirir). Kurum indirimi (TSK / MSB / lisans vb.) varsa büroyla görüş.' };
 }
@@ -2943,7 +2943,7 @@ function arSablonlar(k) {
   const v = arVeri(k), sv = arSv(k), ad = (k.ad || '').split(' ')[0];
   const fiyat = k.hak === 'var'
     ? sv.f[0][0] + ' ' + sv.f[0][1] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][1] + ' ₺ (eski öğrenci %50)'
-    : sv.f[0][0] + ' ' + sv.f[0][2] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][2] + ' ₺ (erken kayıt)';
+    : sv.f[0][0] + ' ' + sv.f[0][2] + ' ₺, ' + sv.f[1][0] + ' ' + sv.f[1][2] + ' ₺ (' + sv.etk + ')';
   const erisim = v.et === 'don' ? 'Dersiniz ' + (v.ed || '') + ' tarihinde donduruldu' + (v.dk ? ', ' + v.dk + ' günlük hakkınız duruyor' : '') + '.'
     : v.et === 'acik' ? 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona eriyor.'
       : 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona erdi.';
@@ -3106,11 +3106,11 @@ function arFiyatKutusu() {
   const para = x => x == null ? '—' : x.toLocaleString('tr-TR') + ' ₺';
   const blok = b => '<tr class="grup"><td colspan="4"><b>' + esc(b.g) + '</b></td></tr>' +
     b.s.map(s => '<tr><td>' + esc(s[0]) + '</td><td class="num">' + para(s[1]) + '</td><td class="num dim">' + para(s[2]) + '</td>' +
-      '<td class="num">' + (b.kampanya ? '<span class="dim">birleşmez</span>' : '<b>' + para(Math.round(s[1] / 2)) + '</b>') + '</td></tr>').join('');
-  return '<details class="card card-pad section" open><summary class="card-title">Tüm ders fiyatları <span class="dim small">ankaradil.com · 14.09.2026</span></summary>' +
+      '<td class="num">' + (b.kampanya ? '<span class="dim">birleşmez</span>' : '<b>' + para(Math.round((b.liste && s[2] ? s[2] : s[1]) / 2)) + '</b>') + '</td></tr>').join('');
+  return '<details class="card card-pad section" open><summary class="card-title">Tüm ders fiyatları <span class="dim small">ankaradil.com · 07.10.2026</span></summary>' +
     '<div class="twrap"><table class="data"><thead><tr><th>Ders</th><th class="num">Sitedeki fiyat</th><th class="num">Liste</th><th class="num">%50 eski öğrenci</th></tr></thead>' +
     '<tbody>' + AR_FIYAT.map(blok).join('') + '</tbody></table></div>' +
-    '<p class="small dim">%50 eski öğrenci indirimi ömür boyu <b>tek kullanımlık</b> — ana paket, Word Up, kamp, okuma dersi fark etmez. Kullanacak kişi en az aynı seviye paketi almalı.</p></details>';
+    '<p class="small dim">%50 eski öğrenci indirimi ömür boyu <b>tek kullanımlık</b> — ana paket, Word Up, kamp, okuma dersi fark etmez. Kullanacak kişi en az aynı seviye paketi almalı. <b>2027 programlarında %50 liste fiyatı üzerinden</b> hesaplanır (sitedeki indirimli fiyat üzerinden değil).</p></details>';
 }
 function arDetay(k) {
   const v = arVeri(k), sv = arSv(k), C = DB.catalogs;
@@ -3157,11 +3157,11 @@ function arDetay(k) {
       '</span></div><p>' + esc(s.m) + '</p></div>').join('') + '</div></div>';
 
   const fp = '<div class="card card-pad section"><h2 class="card-title">2027 İlkbahar fiyatları · ' + esc(k.seviye) + '</h2>' +
-    '<table class="data"><thead><tr><th>Paket</th><th class="num">Erken kayıt</th><th class="num">%50</th></tr></thead><tbody>' +
-    sv.f.map(f => '<tr><td>' + esc(f[0]) + '</td><td class="num' + (k.hak === 'var' ? ' dim' : '') + '">' + f[2] + ' ₺</td>' +
+    '<table class="data"><thead><tr><th>Paket</th><th class="num">Liste</th><th class="num">Sitedeki</th><th class="num">%50 (listeden)</th></tr></thead><tbody>' +
+    sv.f.map(f => '<tr><td>' + esc(f[0]) + '</td><td class="num dim">' + f[3] + ' ₺</td><td class="num' + (k.hak === 'var' ? ' dim' : '') + '">' + f[2] + ' ₺</td>' +
       '<td class="num' + (k.hak === 'var' ? '' : ' dim') + '"><b>' + f[1] + ' ₺</b></td></tr>').join('') + '</tbody></table>' +
     '<p class="small dim">Ders başlangıcı ' + sv.bas + ' · erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' · ' + sv.kitap : '') + '. ' +
-    (k.hak === 'var' ? 'Bu öğrenci %50\'yi kullanabilir.' : '%50 hakkı bitmiş — erken kayıt fiyatı geçerli.') + '</p></div>';
+    (k.hak === 'var' ? 'Bu öğrenci %50\'yi kullanabilir.' : '%50 hakkı bitmiş — sitedeki fiyat geçerli.') + '</p></div>';
 
   const ivTarih = todayISO();
   const pre = kk => esc(kk || '');
@@ -3195,7 +3195,7 @@ function arDetay(k) {
     '<div class="field"><label>Yararlandığı Ek Ders</label><input name="ekDers" value="' + pre(v.ek) + '"></div>' +
     '<div class="field"><label>Düşündüğü Program</label><select name="dusunulenProgram">' + selectOpts(C.anaProgramlar, '', true) + '</select></div>' +
     '<div class="field wide"><label>Görüşme Notu</label><textarea name="gorusmeNotu" rows="2"></textarea></div>' +
-    '<div class="field wide"><label>Önerilen Program</label><textarea name="onerilen" rows="1">' + esc(k.hak === 'var' ? sv.f[0][0] + ' (%50 · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (erken kayıt · ' + sv.f[0][2] + ' ₺)') + '</textarea></div>' +
+    '<div class="field wide"><label>Önerilen Program</label><textarea name="onerilen" rows="1">' + esc(k.hak === 'var' ? sv.f[0][0] + ' (%50 listeden · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (' + sv.etk + ' · ' + sv.f[0][2] + ' ₺)') + '</textarea></div>' +
     '<div class="field wide"><label>Yapılan İşlem / Sonuç</label><textarea name="islem" rows="1"></textarea></div>' +
     '</div><div class="form-actions"><button class="btn primary" type="submit">Görüşmeyi Kaydet</button>' +
     '<button class="btn" type="button" data-action="ar-kuyruk" data-id="' + esc(k.id) + '">Tekrar aranacak → kuyruğa ekle</button>' +
@@ -3505,7 +3505,7 @@ document.addEventListener('click', e => {
       puanYeterli: '', devamEdiyor: v.cal || '', kursuTamamladi: v.kt || '', yonlendirme: v.yon || '',
       anaProgram: '', ekDers: v.ek || '', baskaProgram: '', dusunulenProgram: '', erisimSorunu: '',
       gorusmeNotu: notEl ? notEl.value.trim() : '',
-      onerilen: k.hak === 'var' ? sv.f[0][0] + ' (%50 · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (erken kayıt · ' + sv.f[0][2] + ' ₺)',
+      onerilen: k.hak === 'var' ? sv.f[0][0] + ' (%50 listeden · ' + sv.f[0][1] + ' ₺)' : sv.f[0][0] + ' (' + sv.etk + ' · ' + sv.f[0][2] + ' ₺)',
       islem: tip.islem, kaynak: 'arama-konsolu'
     };
     persist('addInterview', { studentId: k.ogrenciId || '', yeni: k.ogrenciId ? null : { ad: k.ad, tel: k.tel, grup: grup }, iv: iv },
