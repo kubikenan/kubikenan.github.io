@@ -2908,7 +2908,7 @@ function arRepl(k) {
   const v = arVeri(k), ad = (k.ad || '').split(' ')[0], out = [];
   const paket = v.p || AR_LISTE_ADI[k.liste] || 'İleri Seviye';
   if (k.durum === 'g') {
-    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. Daha önce görüşmüştük — <b>2027 İlkbahar</b> için tekrar arıyorum.' });
+    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan Hoca. Daha önce görüşmüştük — <b>2027 İlkbahar</b> için tekrar arıyorum.' });
     const gec = [];
     if (v.cal) gec.push('çalışmaya devam ' + (v.cal === 'Evet' ? 'ediyordu' : 'etmiyordu'));
     if (v.ap) gec.push('puanı ' + v.ap);
@@ -2918,7 +2918,7 @@ function arRepl(k) {
     out.push({ t: 'Geçen görüşmeden bu yana ne değişti — çalışmaya başlayabildiniz mi, sınava girdiniz mi?',
       ek: gec.length ? 'Geçen sefer: ' + gec.join(' · ') : 'Geçen sefer form doldurulmamış — bu kez doldur.' });
   } else {
-    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. <b>' + esc(paket) + '</b> dersimizin öğrencisiydiniz, dönem sonu durum araması yapıyorum.' });
+    out.push({ t: 'İyi günler ' + esc(ad) + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan Hoca. <b>' + esc(paket) + '</b> dersimizin öğrencisiydiniz, dönem sonu durum araması yapıyorum.' });
     const ip = [];
     if (v.ap) ip.push('panelde son puanı ' + v.ap);
     if (v.hp) ip.push('hedefi ' + v.hp);
@@ -2950,7 +2950,7 @@ function arSablonlar(k) {
     : v.et === 'acik' ? 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona eriyor.'
       : 'Ders erişiminiz ' + (v.ed || '') + ' tarihinde sona erdi.';
   return [
-    { ad: 'Ulaşamadım', m: 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan. Sizi aradım ama ulaşamadım. 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum; uygun olduğunuzda dönerseniz sevinirim.' },
+    { ad: 'Ulaşamadım', m: 'Merhaba ' + ad + ' Hocam, Ankara Dil Akademisi\'nden Kubilay Kenan Hoca. Sizi aradım ama ulaşamadım. 2027 İlkbahar dönemi için size özel fiyatı iletmek istiyorum; uygun olduğunuzda dönerseniz sevinirim.' },
     { ad: 'Fiyat bilgisi', m: 'Merhaba ' + ad + ' Hocam, görüşmemizin ardından fiyatları iletiyorum: ' + fiyat + '. ' + (sv.basladi ? 'Ders ' + sv.bas + ' tarihinde başladı, kayıtlar devam ediyor' + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '; geçmiş dersleri kayıttan izleyebilirsiniz.' : 'Ders ' + sv.bas + ' tarihinde başlıyor, erken kayıt son tarihi ' + sv.son + (sv.kitap ? ' (' + sv.kitap + ')' : '') + '. Son tarihten sonra liste fiyatı uygulanıyor.') },
     { ad: 'Ders süresi', m: 'Merhaba ' + ad + ' Hocam, ders erişiminizle ilgili bilgi: ' + erisim + ' Yeni dönem için ' + sv.bas + ' tarihinde başlayan programımıza kayıt olabilirsiniz.' },
     { ad: 'Kamp', m: 'Merhaba ' + ad + ' Hocam, 22 Kasım YDS için 10 Günlük Soru Çözüm Kampımız 9 Kasım\'da başlıyor (hafta içi 19:30-23:00, 21 Kasım\'da ek ders). Canlı 7.000 ₺, kayıttan 6.000 ₺. Kamp 50 puan ve üstü seviye için uygundur.' }
